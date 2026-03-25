@@ -16,9 +16,16 @@ export default defineNuxtConfig({
     },
     app: {
         head: {
+            title: 'Superskala',
+            meta: [
+                {name: 'apple-mobile-web-app-title', content: 'Superskala'}
+            ],
             link: [
-                { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-                { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico', sizes: '32x32' }
+                {rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96'},
+                {rel: 'icon', type: 'image/svg+xml', href: '/favicon/favicon.svg'},
+                {rel: 'shortcut icon', href: '/favicon/favicon.ico'},
+                {rel: 'apple-touch-icon', sizes: '180x180', href: '/favicon/apple-touch-icon.png'},
+                {rel: 'manifest', href: '/favicon/site.webmanifest'}
             ]
         }
     },
@@ -30,17 +37,17 @@ export default defineNuxtConfig({
             theme_color: '#1f2937',
             icons: [
                 {
-                    src: 'pwa-192x192.png',
+                    src: '/favicon/web-app-manifest-192x192.png',
                     sizes: '192x192',
                     type: 'image/png',
                 },
                 {
-                    src: 'pwa-512x512.png',
+                    src: '/favicon/web-app-manifest-512x512.png',
                     sizes: '512x512',
                     type: 'image/png',
                 },
                 {
-                    src: 'pwa-512x512.png',
+                    src: '/favicon/web-app-manifest-512x512.png',
                     sizes: '512x512',
                     type: 'image/png',
                     purpose: 'any maskable',
@@ -49,6 +56,36 @@ export default defineNuxtConfig({
         },
         workbox: {
             globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+            runtimeCaching: [
+                {
+                    urlPattern: /^https:\/\/api\.mapy\.cz\/v1\/maptiles\/.*/,
+                    handler: 'CacheFirst',
+                    options: {
+                        cacheName: 'map-tiles',
+                        expiration: {
+                            maxEntries: 500,
+                            maxAgeSeconds: 60 * 60 * 24 * 30 // 30 Days
+                        },
+                        cacheableResponse: {
+                            statuses: [0, 200]
+                        }
+                    }
+                },
+                {
+                    urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
+                    handler: 'NetworkFirst',
+                    options: {
+                        cacheName: 'supabase-data',
+                        expiration: {
+                            maxEntries: 50,
+                            maxAgeSeconds: 60 * 60 * 24 * 7 // 1 Week
+                        },
+                        cacheableResponse: {
+                            statuses: [0, 200]
+                        }
+                    }
+                }
+            ]
         },
         devOptions: {
             enabled: true,
