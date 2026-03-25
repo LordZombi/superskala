@@ -2,9 +2,11 @@
 export default defineNuxtConfig({
     compatibilityDate: '2026-03-25',
     devtools: {enabled: true},
+    css: ['~/assets/css/main.css'],
     modules: [
         '@nuxtjs/supabase',
-        '@vite-pwa/nuxt'
+        '@nuxtjs/tailwindcss',
+        '@vite-pwa/nuxt',
     ],
     supabase: {
         redirect: false

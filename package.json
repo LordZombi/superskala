@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@nuxtjs/supabase": "^2.0.4",
+    "@nuxtjs/tailwindcss": "^6.14.0",
     "@types/leaflet": "^1.9.18",
     "@vite-pwa/nuxt": "^1.1.1",
     "supabase": "^2.84.0"
