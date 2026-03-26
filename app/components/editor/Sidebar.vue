@@ -93,9 +93,17 @@
                 <div class="space-y-4">
                     <UFormField label="Názov cesty">
                         <UInput
-                            v-model="climbName"
+                            v-model="name"
                             placeholder="napr., Burden of Dreams"
                             icon="i-heroicons-tag"
+                        />
+                    </UFormField>
+
+                    <UFormField label="Popis cesty">
+                        <UTextarea
+                            v-model="description"
+                            placeholder="Podrobný popis cesty, štýl, tipy..."
+                            :rows="3"
                         />
                     </UFormField>
 
@@ -113,6 +121,11 @@
                         v-model="isSitStart"
                         name="isSitStart"
                         label="Sit štart"
+                    />
+                    <UCheckbox
+                        v-model="isDangerous"
+                        name="isDangerous"
+                        label="Nebezpečné (zlý dopad, medvede...)"
                     />
                 </div>
             </div>
@@ -136,16 +149,14 @@
     setup
     lang="ts"
 >
+import type {Database} from '~/types/database.types';
+
 /**
  * @file Sidebar component for the Topo Editor. Manages form inputs, drawing mode, and image upload.
  * All data is managed via v-model from the parent.
  */
 
-interface Grade {
-    id: number;
-    font: string;
-    value: number;
-}
+type Grade = Database['public']['Tables']['grades']['Row'];
 
 defineProps<{
     availableGrades: Grade[];
@@ -154,9 +165,11 @@ defineProps<{
 // Define models for two-way data binding with the parent component
 const climbId = defineModel<string>('climbId', {default: ''});
 const imageUrl = defineModel<string>('imageUrl', {default: ''});
-const climbName = defineModel<string>('climbName', {default: ''});
-const gradeId = defineModel<number>('gradeId');
+const name = defineModel<string>('name', {default: ''});
+const description = defineModel<string | null>('description', {default: null});
+const gradeId = defineModel<number | null>('gradeId', {default: null});
 const isSitStart = defineModel<boolean>('isSitStart', {default: false});
+const isDangerous = defineModel<boolean>('isDangerous', {default: false});
 const mode = defineModel<'start' | 'top' | 'path'>('mode', {default: 'path'});
 
 // Models for drawing data, passed to Canvas and cleared here
@@ -165,7 +178,7 @@ const topPos = defineModel<{ x: number, y: number } | null>('topPos', {default: 
 const pathPoints = defineModel<{ x: number, y: number }[]>('pathPoints', {default: () => []});
 
 // Supabase client for image upload
-const client = useSupabaseClient();
+const client = useSupabaseClient<Database>();
 
 // Define emitted events
 defineEmits(['save', 'newClimb']);

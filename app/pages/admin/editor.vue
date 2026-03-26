@@ -14,10 +14,9 @@
                         >
                             <USelectMenu
                                 v-model="selectedBoulderId"
-                                :items="boulders"
-                                value-key="id"
-                                label-key="name"
+                                :items="itemsBoulders"
                                 placeholder="Vyber kameň"
+                                value-key="id"
                             />
                         </UFormField>
 
@@ -26,11 +25,10 @@
                         >
                             <USelectMenu
                                 v-model="state.climbId"
-                                :items="climbs"
-                                value-key="id"
-                                label-key="name"
-                                placeholder="Vyber cestu"
                                 :disabled="!selectedBoulderId"
+                                :items="itemsClimbs"
+                                placeholder="Vyber cestu"
+                                value-key="id"
                             />
                         </UFormField>
                     </div>
@@ -42,9 +40,11 @@
                     :available-grades="availableGrades"
                     v-model:climbId="state.climbId"
                     v-model:imageUrl="state.imageUrl"
-                    v-model:climbName="state.climbName"
+                    v-model:name="state.name"
+                    v-model:description="state.description"
                     v-model:gradeId="state.gradeId"
                     v-model:isSitStart="state.isSitStart"
+                    v-model:isDangerous="state.isDangerous"
                     v-model:mode="state.mode"
                     v-model:startPos="state.startPos"
                     v-model:topPos="state.topPos"
@@ -82,9 +82,11 @@ type Boulder = Database['public']['Tables']['boulders']['Row'];
 interface EditorState {
     climbId: string;
     imageUrl: string;
-    climbName: string;
+    name: string;
+    description: string;
     gradeId: number | null;
     isSitStart: boolean;
+    isDangerous: boolean;
     mode: 'start' | 'top' | 'path';
     startPos: { x: number; y: number } | null;
     topPos: { x: number; y: number } | null;
@@ -96,9 +98,11 @@ const client = useSupabaseClient<Database>();
 const state = reactive<EditorState>({
     climbId: '',
     imageUrl: '',
-    climbName: '',
+    name: '',
+    description: '',
     gradeId: null,
     isSitStart: false,
+    isDangerous: false,
     mode: 'path',
     startPos: null,
     topPos: null,
@@ -110,6 +114,20 @@ const climbs = ref<Climb[]>([]);
 const availableGrades = ref<Grade[]>([]);
 const selectedBoulderId = ref<string | null>(null);
 
+const itemsBoulders = computed(() => {
+    return boulders.value.map(boulder => ({
+        id: boulder.id,
+        label: boulder.name,
+    }))
+});
+
+const itemsClimbs = computed(() => {
+    return climbs.value.map(climb => ({
+        id: climb.id,
+        label: climb.name,
+    }))
+})
+
 // --- DATA FETCHING ---
 onMounted(async () => {
     const {data: bouldersData} = await client.from('boulders').select('id, name, image_url').order('name');
@@ -120,6 +138,7 @@ onMounted(async () => {
 });
 
 watch(selectedBoulderId, async (newBoulderId) => {
+    console.log(newBoulderId)
     if (!newBoulderId) {
         climbs.value = [];
         state.climbId = '';
@@ -135,9 +154,11 @@ watch(() => state.climbId, (newClimbId) => {
     if (!newClimbId) return;
     const climbData = climbs.value.find(c => c.id === newClimbId);
     if (climbData) {
-        state.climbName = climbData.name;
+        state.name = climbData.name;
+        state.description = climbData.description;
         state.gradeId = climbData.grade_id;
         state.isSitStart = climbData.is_sit_start ?? false;
+        state.isDangerous = climbData.is_dangerous ?? false;
         state.startPos = climbData.start_x && climbData.start_y ? {x: climbData.start_x, y: climbData.start_y} : null;
         state.topPos = climbData.top_x && climbData.top_y ? {x: climbData.top_x, y: climbData.top_y} : null;
         state.pathPoints = climbData.topo_path ? pathStringToPoints(climbData.topo_path) : [];
@@ -182,9 +203,11 @@ const handleSave = async () => {
 
     const dataToSave: Database['public']['Tables']['climbs']['Insert'] = {
         boulder_id: selectedBoulderId.value,
-        name: state.climbName,
+        name: state.name,
+        description: state.description,
         grade_id: state.gradeId,
         is_sit_start: state.isSitStart,
+        is_dangerous: state.isDangerous,
         start_x: state.startPos?.x ?? null,
         start_y: state.startPos?.y ?? null,
         top_x: state.topPos?.x ?? null,
@@ -209,9 +232,11 @@ const handleSave = async () => {
 
 const handleNewClimb = () => {
     state.climbId = '';
-    state.climbName = 'New Climb';
+    state.name = '';
+    state.description = '';
     state.gradeId = null;
     state.isSitStart = false;
+    state.isDangerous = false;
     state.startPos = null;
     state.topPos = null;
     state.pathPoints = [];
