@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+    /* Tu môžeš definovať tému, ale šírku vyriešime cez utility */
+}
+
+/* Vynútenie šírky pre Nuxt UI komponenty v celom projekte */
+@layer base {
+    [data-slot="base"],
+    [data-slot="control"],
+    [data-slot="root"] {
+        @apply w-full;
+    }
+}

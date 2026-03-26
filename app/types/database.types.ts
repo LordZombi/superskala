@@ -36,18 +36,27 @@ export type Database = {
         Row: {
           description: string | null
           id: string
+          image_url: string | null
+          lat: number | null
+          lon: number | null
           name: string
           sector_id: string
         }
         Insert: {
           description?: string | null
           id?: string
+          image_url?: string | null
+          lat?: number | null
+          lon?: number | null
           name: string
           sector_id: string
         }
         Update: {
           description?: string | null
           id?: string
+          image_url?: string | null
+          lat?: number | null
+          lon?: number | null
           name?: string
           sector_id?: string
         }
@@ -64,24 +73,54 @@ export type Database = {
       climbs: {
         Row: {
           boulder_id: string
+          climbing_style: string | null
+          description: string | null
           grade: string | null
+          grade_id: number | null
           id: string
+          is_dangerous: boolean | null
           is_project: boolean
+          is_sit_start: boolean | null
           name: string
+          start_x: number | null
+          start_y: number | null
+          top_x: number | null
+          top_y: number | null
+          topo_path: string | null
         }
         Insert: {
           boulder_id: string
+          climbing_style?: string | null
+          description?: string | null
           grade?: string | null
+          grade_id?: number | null
           id?: string
+          is_dangerous?: boolean | null
           is_project?: boolean
+          is_sit_start?: boolean | null
           name: string
+          start_x?: number | null
+          start_y?: number | null
+          top_x?: number | null
+          top_y?: number | null
+          topo_path?: string | null
         }
         Update: {
           boulder_id?: string
+          climbing_style?: string | null
+          description?: string | null
           grade?: string | null
+          grade_id?: number | null
           id?: string
+          is_dangerous?: boolean | null
           is_project?: boolean
+          is_sit_start?: boolean | null
           name?: string
+          start_x?: number | null
+          start_y?: number | null
+          top_x?: number | null
+          top_y?: number | null
+          topo_path?: string | null
         }
         Relationships: [
           {
@@ -91,7 +130,32 @@ export type Database = {
             referencedRelation: "boulders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "climbs_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      grades: {
+        Row: {
+          font: string
+          id: number
+          value: number
+        }
+        Insert: {
+          font: string
+          id?: number
+          value: number
+        }
+        Update: {
+          font?: string
+          id?: number
+          value?: number
+        }
+        Relationships: []
       }
       sectors: {
         Row: {

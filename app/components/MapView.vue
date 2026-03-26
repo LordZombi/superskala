@@ -1,8 +1,14 @@
 <template>
-    <div id="map" class="h-full w-full"/>
+    <div
+        id="map"
+        class="h-full w-full"
+    />
 </template>
 
-<script setup lang="ts">
+<script
+    setup
+    lang="ts"
+>
 import {onMounted} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import {useSupabase} from "~/composables/useSupabase";
