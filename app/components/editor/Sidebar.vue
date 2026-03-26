@@ -9,7 +9,7 @@
                         icon="i-heroicons-plus-circle"
                         @click="$emit('newClimb')"
                     >
-                        Nový Climb
+                        Nová cesta
                     </UButton>
                 </div>
             </div>
@@ -18,12 +18,12 @@
         <div class="space-y-6">
             <!-- Climb ID -->
             <UFormField
-                label="Climb ID"
-                description="UUID of the climb to update"
+                label="ID Cesty"
+                description="UUID"
             >
                 <UInput
                     v-model="climbId"
-                    placeholder="New climb will have a generated ID"
+                    placeholder="Nová cesta bude mať vygenerované ID"
                     icon="i-heroicons-finger-print"
                     disabled
                 />
@@ -31,8 +31,8 @@
 
             <!-- Image Upload -->
             <UFormField
-                label="Boulder Image"
-                description="Upload a new image for the boulder"
+                label="Obrázok kameňa"
+                description="Nahraj nový obrázok pre kameň"
             >
                 <UInput
                     type="file"
@@ -46,28 +46,30 @@
 
             <!-- Drawing Mode -->
             <div>
-                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">Drawing Mode</h2>
+                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">
+                    Režim kreslenia
+                </h2>
                 <div class="grid grid-cols-3 gap-2 mb-2">
                     <UButton
                         :variant="mode === 'start' ? 'solid' : 'outline'"
                         color="primary"
                         @click="mode = 'start'"
                         icon="i-heroicons-map-pin"
-                        label="Set Start"
+                        label="Štart"
                     />
                     <UButton
                         :variant="mode === 'top' ? 'solid' : 'outline'"
                         color="error"
                         @click="mode = 'top'"
                         icon="i-heroicons-flag"
-                        label="Set Top"
+                        label="Top"
                     />
                     <UButton
                         :variant="mode === 'path' ? 'solid' : 'outline'"
                         color="info"
                         @click="mode = 'path'"
                         icon="i-heroicons-pencil-square"
-                        label="Draw Path"
+                        label="Cesta"
                     />
                 </div>
                 <UButton
@@ -77,7 +79,7 @@
                     @click="clearDrawing"
                     icon="i-heroicons-trash"
                 >
-                    Clear Drawing
+                    Vymazať cestu
                 </UButton>
             </div>
 
@@ -85,30 +87,32 @@
 
             <!-- Climb Details -->
             <div>
-                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">Climb Details</h2>
+                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">
+                    Detaily cesty
+                </h2>
                 <div class="space-y-4">
-                    <UFormField label="Climb Name">
+                    <UFormField label="Názov cesty">
                         <UInput
                             v-model="climbName"
-                            placeholder="e.g., Šak ty"
+                            placeholder="napr., Burden of Dreams"
                             icon="i-heroicons-tag"
                         />
                     </UFormField>
 
-                    <UFormField label="Grade">
+                    <UFormField label="Obtiažnosť">
                         <USelectMenu
                             v-model="gradeId"
                             :items="availableGrades"
                             value-key="id"
                             label-key="font"
-                            placeholder="Select grade"
+                            placeholder="Vyber obtiažnosť"
                         />
                     </UFormField>
 
                     <UCheckbox
                         v-model="isSitStart"
                         name="isSitStart"
-                        label="Sit Start"
+                        label="Sit štart"
                     />
                 </div>
             </div>

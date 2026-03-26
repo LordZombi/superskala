@@ -6,7 +6,7 @@
             <div class="lg:col-span-1 space-y-4">
                 <UCard>
                     <template #header>
-                        <h2 class="text-lg font-semibold">1. Select Boulder & Climb</h2>
+                        <h2 class="text-lg font-semibold">1. Vyber Kameň a Cestu</h2>
                     </template>
                     <div class="space-y-4">
                         <UFormField
@@ -17,7 +17,7 @@
                                 :items="boulders"
                                 value-key="id"
                                 label-key="name"
-                                placeholder="Select a boulder"
+                                placeholder="Vyber kameň"
                             />
                         </UFormField>
 
@@ -29,7 +29,7 @@
                                 :items="climbs"
                                 value-key="id"
                                 label-key="name"
-                                placeholder="Select a climb"
+                                placeholder="Vyber cestu"
                                 :disabled="!selectedBoulderId"
                             />
                         </UFormField>
