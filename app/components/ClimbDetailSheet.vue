@@ -38,7 +38,7 @@
                         v-if="pathDSexy"
                         :d="pathDSexy"
                         class="stroke-white"
-                        stroke-width="10"
+                        stroke-width="20"
                         fill="none"
                         stroke-linecap="round"
                         stroke-linejoin="round"

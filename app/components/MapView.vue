@@ -23,38 +23,43 @@ const config = useRuntimeConfig()
 onMounted(async () => {
     if (!mapElement.value) return
 
-    // Mapa centrovaná na Chtelnicu
-    const map = L.map(mapElement.value).setView([48.611123, 17.576012], 19)
+    const slovakiaBounds = L.latLngBounds(
+        [47.7, 16.8],
+        [49.6, 22.6]
+    )
+
+    const map = L.map(mapElement.value, {
+        maxBounds: slovakiaBounds,
+        maxBoundsViscosity: 1.0,
+        minZoom: 8,
+        maxZoom: 18,
+    }).setView([48.611123, 17.576012], 16)
 
     L.tileLayer(`https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${config.public.mapyApiKey}`, {
         attribution: '&copy; Seznam.cz a.s.',
+        bounds: slovakiaBounds,
     }).addTo(map)
 
     const climbs = await getClimbsForMap()
 
     climbs.forEach((climb: any) => {
-        console.log(climbs)
-        // Použijeme lat/lon priamo z cesty (climb)
         const lat = climb.lat
         const lon = climb.lon
 
         if (lat && lon) {
-            // Vytvoríme kruhový marker
             const circle = L.circleMarker([lat, lon], {
-                radius: 8,           // Veľkosť kruhu
-                fillColor: "#10b981", // Emerald-500
-                color: "white",       // Okraj
-                weight: 2,           // Hrúbka okraja
+                radius: 8,
+                color: "white",
+                weight: 2,
                 opacity: 1,
-                fillOpacity: 0.8
+                fillOpacity: 1,
+                className: 'fill-emerald-500 focus:outline-none focus:stroke-emerald-500'
             }).addTo(map)
 
-            // Klik na kruh otvorí sheet
             circle.on('click', () => {
                 selectedClimbId.value = climb.id
             })
 
-            // Tooltip na hover
             circle.bindTooltip(climb.name, {
                 direction: 'top',
                 offset: [0, -5]
@@ -63,18 +68,3 @@ onMounted(async () => {
     })
 })
 </script>
-
-<style>
-@reference "tailwindcss";
-
-#map {
-
-    path {
-
-        &:focus,
-        &:focus-visible {
-            @apply stroke-emerald-500
-        }
-    }
-}
-</style>
