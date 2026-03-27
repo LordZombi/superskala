@@ -35,9 +35,9 @@ export default defineNuxtConfig({
 
     app: {
         head: {
-            title: 'Superskala',
+            title: 'Superskaly',
             meta: [
-                {name: 'apple-mobile-web-app-title', content: 'Superskala'},
+                {name: 'apple-mobile-web-app-title', content: 'Superskaly'},
             ],
             link: [
                 {rel: 'icon', type: 'image/png', href: '/favicon/favicon-96x96.png', sizes: '96x96'},
