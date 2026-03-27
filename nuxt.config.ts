@@ -51,10 +51,12 @@ export default defineNuxtConfig({
 
     pwa: {
         manifest: {
-            name: 'Superskala',
-            short_name: 'Superskala',
-            description: 'Climbing Topos',
-            theme_color: '#1f2937',
+            name: 'Superskaly',
+            short_name: 'Superskaly',
+            description: 'Interaktívny digitálny sprievodca boulderingom a podrobné nákresy lezeckých ciest.',
+            theme_color: '#FFFFFF',
+            background_color: '#FFFFFF',
+            display: 'standalone',
             icons: [
                 {
                     src: '/favicon/web-app-manifest-192x192.png',
@@ -84,35 +86,36 @@ export default defineNuxtConfig({
                         cacheName: 'map-tiles',
                         expiration: {
                             maxEntries: 500,
-                            maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Days
+                            maxAgeSeconds: 60 * 60 * 24 * 30
+                        }
+                    }
+                },
+                {
+                    urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/,
+                    handler: 'CacheFirst',
+                    options: {
+                        cacheName: 'boulder-images',
+                        expiration: {
+                            maxEntries: 100,
+                            maxAgeSeconds: 60 * 60 * 24 * 30
                         },
                         cacheableResponse: {
-                            statuses: [0, 200],
-                        },
-                    },
+                            statuses: [0, 200]
+                        }
+                    }
                 },
                 {
                     urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
-                    handler: 'NetworkFirst',
+                    handler: 'StaleWhileRevalidate',
                     options: {
                         cacheName: 'supabase-data',
                         expiration: {
-                            maxEntries: 50,
-                            maxAgeSeconds: 60 * 60 * 24 * 7, // 1 Week
-                        },
-                        cacheableResponse: {
-                            statuses: [0, 200],
-                        },
-                    },
-                },
-            ],
-        },
-        devOptions: {
-            enabled: true,
-            suppressWarnings: true,
-            navigateFallback: '/',
-            navigateFallbackAllowlist: [/^\/$/],
-            type: 'module',
-        },
+                            maxEntries: 100,
+                            maxAgeSeconds: 60 * 60 * 24 * 7
+                        }
+                    }
+                }
+            ]
+        }
     },
 });
