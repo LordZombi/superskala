@@ -6,6 +6,11 @@ export default defineNuxtConfig({
     },
     compatibilityDate: '2024-07-24',
     devtools: {enabled: true},
+    nitro: {
+        prerender: {
+            routes: ['/']
+        }
+    },
 
     css: ['~/assets/css/main.css'],
 
@@ -50,6 +55,11 @@ export default defineNuxtConfig({
     },
 
     pwa: {
+        devOptions: {
+            enabled: true,
+            type: 'module',
+            navigateFallback: '/',
+        },
         manifest: {
             name: 'Superskaly',
             short_name: 'Superskaly',
@@ -80,7 +90,7 @@ export default defineNuxtConfig({
         workbox: {
             clientsClaim: true,
             skipWaiting: true,
-            globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+            globPatterns: ['**/*.{js,css,html,png,svg,ico,json,woff2}'],
             runtimeCaching: [
                 {
                     urlPattern: /^https:\/\/api\.mapy\.cz\/v1\/maptiles\/.*/,
@@ -115,6 +125,9 @@ export default defineNuxtConfig({
                         expiration: {
                             maxEntries: 100,
                             maxAgeSeconds: 60 * 60 * 24 * 7
+                        },
+                        cacheableResponse: {
+                            statuses: [0, 200]
                         }
                     }
                 }
