@@ -73,6 +73,7 @@
 import {reactive, ref, watch} from 'vue';
 import {useDebounceFn} from '@vueuse/core';
 import type {Database} from '~/types/database.types';
+import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
 
 // --- TYPES ---
 type Grade = Database['public']['Tables']['grades']['Row'];
@@ -83,11 +84,11 @@ interface EditorState {
     climbId: string;
     imageUrl: string;
     name: string;
-    description: string;
-    gradeId: number | null;
+    description?: string;
+    gradeId?: number;
     isSitStart: boolean;
     isDangerous: boolean;
-    mode: 'start' | 'top' | 'path';
+    mode: PathDrawingModeType;
     startPos: { x: number; y: number } | null;
     topPos: { x: number; y: number } | null;
     pathPoints: { x: number; y: number }[];
@@ -100,10 +101,10 @@ const state = reactive<EditorState>({
     imageUrl: '',
     name: '',
     description: '',
-    gradeId: null,
+    gradeId: undefined,
     isSitStart: false,
     isDangerous: false,
-    mode: 'path',
+    mode: undefined,
     startPos: null,
     topPos: null,
     pathPoints: [],
@@ -112,7 +113,7 @@ const state = reactive<EditorState>({
 const boulders = ref<Boulder[]>([]);
 const climbs = ref<Climb[]>([]);
 const availableGrades = ref<Grade[]>([]);
-const selectedBoulderId = ref<string | null>(null);
+const selectedBoulderId = ref<string>();
 
 const itemsBoulders = computed(() => {
     return boulders.value.map(boulder => ({
@@ -130,7 +131,7 @@ const itemsClimbs = computed(() => {
 
 // --- DATA FETCHING ---
 onMounted(async () => {
-    const {data: bouldersData} = await client.from('boulders').select('id, name, image_url').order('name');
+    const {data: bouldersData} = await client.from('boulders').select('*').order('name');
     if (bouldersData) boulders.value = bouldersData;
 
     const {data: gradesData} = await client.from('grades').select('*').order('value');
@@ -155,8 +156,8 @@ watch(() => state.climbId, (newClimbId) => {
     const climbData = climbs.value.find(c => c.id === newClimbId);
     if (climbData) {
         state.name = climbData.name;
-        state.description = climbData.description;
-        state.gradeId = climbData.grade_id;
+        state.description = climbData.description ?? undefined;
+        state.gradeId = climbData.grade_id ?? undefined;
         state.isSitStart = climbData.is_sit_start ?? false;
         state.isDangerous = climbData.is_dangerous ?? false;
         state.startPos = climbData.start_x && climbData.start_y ? {x: climbData.start_x, y: climbData.start_y} : null;
@@ -191,6 +192,7 @@ const pathStringToPoints = (path: string): { x: number, y: number }[] => {
     if (!path) return [];
     return path.replace('M ', '').split(' L ').map(p => {
         const [x, y] = p.split('% ').map(val => parseFloat(val));
+        if (!x || !y) return {x: 0, y: 0};
         return {x, y};
     });
 };
@@ -234,7 +236,7 @@ const handleNewClimb = () => {
     state.climbId = '';
     state.name = '';
     state.description = '';
-    state.gradeId = null;
+    state.gradeId = undefined;
     state.isSitStart = false;
     state.isDangerous = false;
     state.startPos = null;

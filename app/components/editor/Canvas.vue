@@ -17,36 +17,6 @@
                 class="absolute top-0 left-0 w-full h-full"
                 @click="handleSvgClick"
             >
-                <defs>
-                    <filter
-                        id="shadow"
-                        x="-20%"
-                        y="-20%"
-                        width="140%"
-                        height="140%"
-                    >
-                        <feGaussianBlur
-                            in="SourceAlpha"
-                            stdDeviation="2"
-                        />
-                        <feOffset
-                            dx="0"
-                            dy="0"
-                            result="offsetblur"
-                        />
-                        <feComponentTransfer>
-                            <feFuncA
-                                type="linear"
-                                slope="0.5"
-                            />
-                        </feComponentTransfer>
-                        <feMerge>
-                            <feMergeNode/>
-                            <feMergeNode in="SourceGraphic"/>
-                        </feMerge>
-                    </filter>
-                </defs>
-
                 <!-- Existing Path -->
                 <path
                     v-if="pathDSexy"
@@ -56,7 +26,6 @@
                     fill="none"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    filter="url(#shadow)"
                 />
                 <path
                     v-if="pathDshadow"
@@ -111,10 +80,12 @@ import {UCard, UIcon} from '#components';
  * It's a "dumb" component that receives state and emits events.
  */
 
+export type PathDrawingModeType = 'start' | 'top' | 'path' | undefined
+
 // Define component props
 const props = defineProps<{
     imageUrl: string;
-    mode: 'start' | 'top' | 'path';
+    mode: PathDrawingModeType;
 }>();
 
 // Define models for two-way data binding using the new defineModel syntax
@@ -125,6 +96,8 @@ const pathPoints = defineModel<{ x: number; y: number }[]>('pathPoints');
 // Local state for the component
 const imageContainer = ref<HTMLElement | null>(null);
 const imageDimensions = ref({width: 1, height: 1}); // Default to avoid division by zero
+
+const {generateSexyPathD} = useTopoPath();
 
 /**
  * Handles the image loading to capture its natural dimensions.
@@ -172,53 +145,7 @@ const pathDshadow = computed(() => {
  * Táto metóda spája stredové body, čím vytvára efekt "lezeckého lana".
  */
 const pathDSexy = computed(() => {
-    if (!pathPoints.value || pathPoints.value.length < 2 || imageDimensions.value.width <= 1) {
-        return '';
-    }
-
-    const {width, height} = imageDimensions.value;
-
-    // Prepočet bodov z % na absolútne pixely
-    const pts = pathPoints.value.map(p => ({
-        x: (p.x * width) / 100,
-        y: (p.y * height) / 100
-    }));
-
-    const [first, second] = pts
-    if (!(first && second)) return '';
-
-    // Začíname prvým bodom
-    let d = `M ${first.x.toFixed(2)},${first.y.toFixed(2)}`;
-
-    // Ak máme len dva body, vykreslíme rovnú čiaru
-    if (pts.length === 2) {
-        return d + ` L ${second.x.toFixed(2)},${second.y.toFixed(2)}`;
-    }
-
-    // Prechádzame bodmi a vytvárame krivky cez stredové body
-    for (let i = 1; i < pts.length - 1; i++) {
-        // Vypočítame stred medzi aktuálnym a nasledujúcim bodom
-        const a = pts[i];
-        const b = pts[i + 1];
-        if (!(a && b)) continue;
-
-        const xc = (a.x + b.x) / 2;
-        const yc = (a.y + b.y) / 2;
-
-        // Q [kontrolný bod] [koncový bod]
-        // Kontrolný bod je náš kliknutý bod, koncový bod je stred cesty
-        d += ` Q ${a.x.toFixed(2)},${a.y.toFixed(2)} ${xc.toFixed(2)},${yc.toFixed(2)}`;
-    }
-
-    // Spojíme posledný bod priamkou (aby čiara nekončila v "stredovom" bode)
-    const last = pts[pts.length - 1];
-    if (!last) {
-        return d;
-    }
-
-    d += ` L ${last.x.toFixed(2)},${last.y.toFixed(2)}`;
-
-    return d;
+    return generateSexyPathD(pathPoints.value || [], imageDimensions.value);
 });
 
 /**

@@ -42,7 +42,7 @@
                 />
             </UFormField>
 
-            <hr class="border-t border-gray-200 dark:border-gray-800 my-6"/>
+            <SDivider class="my-6"/>
 
             <!-- Drawing Mode -->
             <div>
@@ -83,7 +83,7 @@
                 </UButton>
             </div>
 
-            <hr class="border-t border-gray-200 dark:border-gray-800 my-6"/>
+            <SDivider class="my-6"/>
 
             <!-- Climb Details -->
             <div>
@@ -130,7 +130,7 @@
                 </div>
             </div>
 
-            <hr class="border-t border-gray-200 dark:border-gray-800 my-6"/>
+            <SDivider class="my-6"/>
 
             <UButton
                 block
@@ -150,6 +150,8 @@
     lang="ts"
 >
 import type {Database} from '~/types/database.types';
+import SDivider from "~/components/super/SDivider.vue";
+import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
 
 /**
  * @file Sidebar component for the Topo Editor. Manages form inputs, drawing mode, and image upload.
@@ -166,11 +168,11 @@ defineProps<{
 const climbId = defineModel<string>('climbId', {default: ''});
 const imageUrl = defineModel<string>('imageUrl', {default: ''});
 const name = defineModel<string>('name', {default: ''});
-const description = defineModel<string | null>('description', {default: null});
-const gradeId = defineModel<number | null>('gradeId', {default: null});
+const description = defineModel<string>('description');
+const gradeId = defineModel<number>('gradeId');
 const isSitStart = defineModel<boolean>('isSitStart', {default: false});
 const isDangerous = defineModel<boolean>('isDangerous', {default: false});
-const mode = defineModel<'start' | 'top' | 'path'>('mode', {default: 'path'});
+const mode = defineModel<PathDrawingModeType>('mode');
 
 // Models for drawing data, passed to Canvas and cleared here
 const startPos = defineModel<{ x: number, y: number } | null>('startPos', {default: null});

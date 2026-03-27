@@ -18,16 +18,22 @@ export type Database = {
         Row: {
           description: string | null
           id: string
+          lat: number | null
+          lon: number | null
           name: string
         }
         Insert: {
           description?: string | null
           id?: string
+          lat?: number | null
+          lon?: number | null
           name: string
         }
         Update: {
           description?: string | null
           id?: string
+          lat?: number | null
+          lon?: number | null
           name?: string
         }
         Relationships: []
@@ -75,12 +81,13 @@ export type Database = {
           boulder_id: string
           climbing_style: string | null
           description: string | null
-          grade: string | null
           grade_id: number | null
           id: string
           is_dangerous: boolean | null
           is_project: boolean
           is_sit_start: boolean | null
+          lat: number | null
+          lon: number | null
           name: string
           start_x: number | null
           start_y: number | null
@@ -92,12 +99,13 @@ export type Database = {
           boulder_id: string
           climbing_style?: string | null
           description?: string | null
-          grade?: string | null
           grade_id?: number | null
           id?: string
           is_dangerous?: boolean | null
           is_project?: boolean
           is_sit_start?: boolean | null
+          lat?: number | null
+          lon?: number | null
           name: string
           start_x?: number | null
           start_y?: number | null
@@ -109,12 +117,13 @@ export type Database = {
           boulder_id?: string
           climbing_style?: string | null
           description?: string | null
-          grade?: string | null
           grade_id?: number | null
           id?: string
           is_dangerous?: boolean | null
           is_project?: boolean
           is_sit_start?: boolean | null
+          lat?: number | null
+          lon?: number | null
           name?: string
           start_x?: number | null
           start_y?: number | null

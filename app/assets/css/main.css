@@ -13,3 +13,7 @@
         @apply w-full;
     }
 }
+
+button {
+    @apply hover:cursor-pointer;
+}
