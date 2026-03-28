@@ -1,5 +1,5 @@
 <template>
-    <div class="bg-gray-50 dark:bg-gray-900 min-h-screen p-4 lg:p-8">
+    <div class="bg-gray-50 min-h-screen p-4 lg:p-8">
         <div class="max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             <!-- Control Column -->
@@ -74,6 +74,10 @@ import {reactive, ref, watch} from 'vue';
 import {useDebounceFn} from '@vueuse/core';
 import type {Database} from '~/types/database.types';
 import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
+
+definePageMeta({
+    middleware: 'dev'
+})
 
 // --- TYPES ---
 type Grade = Database['public']['Tables']['grades']['Row'];

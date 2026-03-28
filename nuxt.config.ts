@@ -1,11 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     ssr: false,
+
     future: {
         compatibilityVersion: 4,
     },
+
     compatibilityDate: '2024-07-24',
+
     devtools: {enabled: true},
+
     nitro: {
         prerender: {
             routes: ['/']
@@ -13,6 +17,12 @@ export default defineNuxtConfig({
     },
 
     css: ['~/assets/css/main.css'],
+
+    colorMode: {
+        preference: 'light',
+        fallback: 'light',
+        storageKey: 'nuxt-color-mode'
+    },
 
     postcss: {
         plugins: {
@@ -55,11 +65,6 @@ export default defineNuxtConfig({
     },
 
     pwa: {
-        devOptions: {
-            enabled: true,
-            type: 'module',
-            navigateFallback: '/',
-        },
         manifest: {
             name: 'Superskaly',
             short_name: 'Superskaly',

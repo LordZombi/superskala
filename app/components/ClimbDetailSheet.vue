@@ -3,18 +3,18 @@
         v-if="selectedClimbId"
         :class="[
           'fixed transition-transform duration-300 ease-in-out z-20 flex flex-col overflow-hidden',
-          'bg-white dark:bg-gray-900  shadow-2xl',
+          'bg-white shadow-2xl',
           'right-0 bottom-0 left-0 w-full h-[70vh] rounded-t-3xl',
-          'lg:top-5 lg:right-5 lg:bottom-5 lg:left-auto lg:w-[30vw] lg:min-w-120 lg:h-auto lg:rounded-3xl',
+          'lg:top-12 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[30vw] lg:min-w-120 lg:h-auto lg:rounded-none',
         ]"
     >
-        <div class="relative bg-slate-100 dark:bg-slate-800 shrink-0">
+        <div class="relative">
             <div class="absolute top-4 right-4 z-10">
                 <UButton
                     icon="i-heroicons-x-mark"
                     color="neutral"
-                    variant="solid"
-                    class=" rounded-full"
+                    variant="soft"
+                    class="rounded-full"
                     @click="selectedClimbId = null"
                 />
             </div>
@@ -47,34 +47,28 @@
             </div>
         </div>
 
-        <div class="p-6 overflow-y-auto flex-1 space-y-6">
-            <div
-                v-if="climb"
-                class="space-y-4"
-            >
-                <div class="space-y-2">
+        <div class="p-4 overflow-y-auto flex-1 space-y-6">
+            <div v-if="climb">
+                <div class="space-y-1">
                     <div class="flex justify-between items-start gap-2">
-                        <h2 class="text-3xl font-black tracking-tighter leading-none">{{ climb.name }}</h2>
+                        <h2
+                            class="text-2xl font-bold leading-none"
+                            v-text="climb.name"
+                        ></h2>
                         <div class="col-auto">
                             <UBadge
                                 v-if="climb.grade"
                                 color="primary"
                                 variant="solid"
-                                size="lg"
+                                size="md"
                                 class="shrink-0"
                             >
                                 {{ climb.grade.font }}
                             </UBadge>
                         </div>
                     </div>
-                    <p class="text-slate-500 font-bold uppercase text-[10px] tracking-widest">
+                    <p class="text-slate-500 font-bold uppercase text-[10px]">
                         {{ climb.boulder?.sector?.name }} • {{ climb.boulder?.name }}
-                    </p>
-                    <p
-                        v-if="climb.description"
-                        class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed"
-                    >
-                        {{ climb.description }}
                     </p>
                     <div class="flex gap-2">
                         <div
@@ -83,9 +77,8 @@
                         >
                             <UBadge
                                 label="SIT START"
-                                color="warning"
-                                variant="soft"
-                                size="xs"
+                                color="info"
+                                size="sm"
                             />
                         </div>
                         <div
@@ -101,28 +94,37 @@
                             />
                         </div>
                     </div>
+                    <p
+                        v-if="climb.description"
+                        class="text-slate-600 text-sm leading-relaxed"
+                    >
+                        {{ climb.description }}
+                    </p>
                 </div>
 
-                <SDivider class="my-6"/>
+                <SDivider class="my-3"/>
 
                 <div class="space-y-3">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Ostatné cesty na
+                    <h3 class="text-xs font-black uppercase text-slate-400">
+                        Ostatné cesty na
                         bouldri</h3>
                     <div class="grid gap-2">
-                        <UButton
-                            v-for="other in otherClimbs"
-                            :key="other.id"
-                            :variant="other.id === selectedClimbId ? 'soft' : 'ghost'"
-                            :color="other.id === selectedClimbId ? 'primary' : 'neutral'"
-                            block
-                            class="justify-between px-3 py-2.5"
-                            @click="selectedClimbId = other.id"
-                        >
+                        <UFieldGroup orientation="vertical">
+                            <UButton
+                                v-for="other in otherClimbs"
+                                :key="other.id"
+                                :variant="other.id === selectedClimbId ? 'subtle' : 'outline'"
+                                :color="other.id === selectedClimbId ? 'neutral' : 'neutral'"
+                                block
+                                class="justify-between px-3 py-2.5"
+                                @click="selectedClimbId = other.id"
+                            >
                             <span :class="[other.id === selectedClimbId ? 'font-bold' : 'font-medium']">
                                 {{ other.name }}
                             </span>
-                            <span class="text-[10px] font-mono">{{ other.grade?.font || '?' }}</span>
-                        </UButton>
+                                <span class="text-[10px] font-mono">{{ other.grade?.font || '?' }}</span>
+                            </UButton>
+                        </UFieldGroup>
                     </div>
                 </div>
             </div>

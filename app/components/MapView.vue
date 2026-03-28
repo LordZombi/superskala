@@ -33,6 +33,7 @@ onMounted(async () => {
         maxBoundsViscosity: 1.0,
         minZoom: 8,
         maxZoom: 18,
+        zoomControl: false,
     }).setView([48.611123, 17.576012], 16)
 
     L.tileLayer(`https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${config.public.mapyApiKey}`, {

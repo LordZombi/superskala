@@ -2,7 +2,7 @@
     <UCard>
         <template #header>
             <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-primary-500 dark:text-primary-400">Topo Editor</h1>
+                <h1 class="text-2xl font-bold text-primary-500">Topo Editor</h1>
                 <div class="col-auto">
                     <UButton
                         variant="soft"
@@ -46,7 +46,7 @@
 
             <!-- Drawing Mode -->
             <div>
-                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">
+                <h2 class="text-lg font-semibold text-primary-500 mb-3">
                     Režim kreslenia
                 </h2>
                 <div class="grid grid-cols-3 gap-2 mb-2">
@@ -87,7 +87,7 @@
 
             <!-- Climb Details -->
             <div>
-                <h2 class="text-lg font-semibold text-primary-500 dark:text-primary-400 mb-3">
+                <h2 class="text-lg font-semibold text-primary-500 mb-3">
                     Detaily cesty
                 </h2>
                 <div class="space-y-4">
@@ -132,15 +132,22 @@
 
             <SDivider class="my-6"/>
 
-            <UButton
-                block
-                size="lg"
-                color="primary"
-                icon="i-heroicons-cloud-arrow-up"
-                @click="$emit('save')"
+            <UTooltip
+                :delay-duration="0"
+                text="Zatiaľ iba na skúšku"
+                :disabled="isDev"
             >
-                Uložiť zmeny
-            </UButton>
+                <UButton
+                    block
+                    size="lg"
+                    color="primary"
+                    icon="i-heroicons-cloud-arrow-up"
+                    :disabled="!isDev"
+                    @click="$emit('save')"
+                >
+                    Uložiť zmeny
+                </UButton>
+            </UTooltip>
         </div>
     </UCard>
 </template>
@@ -152,6 +159,8 @@
 import type {Database} from '~/types/database.types';
 import SDivider from "~/components/super/SDivider.vue";
 import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
+
+const isDev = import.meta.dev
 
 /**
  * @file Sidebar component for the Topo Editor. Manages form inputs, drawing mode, and image upload.
