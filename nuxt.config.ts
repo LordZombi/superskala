@@ -18,10 +18,8 @@ export default defineNuxtConfig({
 
     css: ['~/assets/css/main.css'],
 
-    colorMode: {
-        preference: 'light',
-        fallback: 'light',
-        storageKey: 'nuxt-color-mode'
+    ui: {
+        colorMode: false,
     },
 
     postcss: {

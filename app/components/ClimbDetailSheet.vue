@@ -37,11 +37,26 @@
                     <path
                         v-if="pathDSexy"
                         :d="pathDSexy"
-                        class="stroke-white"
+                        class="stroke-white pointer-events-none"
                         stroke-width="20"
                         fill="none"
                         stroke-linecap="round"
                         stroke-linejoin="round"
+                    />
+
+                    <circle
+                        v-for="item in startsOfAllClimbs"
+                        :key="item.id"
+                        :cx="item.point.x"
+                        :cy="item.point.y"
+                        :r="35"
+                        :class="[
+                          'pointer-events-auto cursor-pointer transition-all duration-200 shadow-sm',
+                          item.isActive
+                            ? 'fill-primary-500 stroke-white stroke-8'
+                            : 'fill-white/80 stroke-neutral-400 stroke-4 hover:fill-white'
+                        ]"
+                        @click="selectedClimbId = item.id"
                     />
                 </svg>
             </div>
@@ -155,7 +170,7 @@ const {supabase} = useSupabase()
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
 const dims = ref({width: 1, height: 1})
-const {generateSexyPathD, parsePathString} = useTopoPath();
+const {generateSexyPathD, parsePathString, toAbsolute} = useTopoPath();
 
 watch(selectedClimbId, async (id) => {
     if (!id) {
@@ -177,7 +192,7 @@ watch(selectedClimbId, async (id) => {
     if (currentClimb?.boulder_id) {
         const {data: list} = await supabase
             .from('climbs')
-            .select('id, name, grade:grades(font)')
+            .select('id, name, topo_path, grade:grades(font)')
             .eq('boulder_id', currentClimb.boulder_id)
             .order('name')
 
@@ -189,14 +204,25 @@ const onImageLoad = (e: any) => {
     dims.value = {width: e.target.naturalWidth, height: e.target.naturalHeight}
 }
 
+const startsOfAllClimbs = computed(() => {
+    if (!otherClimbs.value.length || dims.value.width <= 1) return []
+
+    return otherClimbs.value.map(c => {
+        const relPoints = parsePathString(c.topo_path)
+        if (!relPoints[0]) return null
+
+        return {
+            id: c.id,
+            point: toAbsolute(relPoints[0], dims.value),
+            isActive: c.id === selectedClimbId.value
+        }
+    }).filter(i => i !== null)
+})
+
 const pathDSexy = computed(() => {
-    // 3. Najprv overíme, či máme topo_path
     if (!climb.value?.topo_path || dims.value.width <= 1) return ''
-
-    // 4. Použijeme parsovaciu funkciu z composable na premenu DB reťazca na body
-    const pts = parsePathString(climb.value.topo_path);
-
-    // 5. Použijeme vykresľovaciu funkciu z composable na premenu bodov na SVG path
-    return generateSexyPathD(pts, dims.value);
+    const relPoints = parsePathString(climb.value.topo_path)
+    const absPoints = relPoints.map(pt => toAbsolute(pt, dims.value))
+    return generateSexyPathD(absPoints)
 })
 </script>

@@ -43,6 +43,8 @@ const isDev = import.meta.dev;
                     variant="ghost"
                     class="rounded-full"
                 />
+
+                <UColorModeButton/>
             </div>
         </div>
     </header>

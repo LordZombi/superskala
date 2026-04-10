@@ -97,7 +97,7 @@ const pathPoints = defineModel<{ x: number; y: number }[]>('pathPoints');
 const imageContainer = ref<HTMLElement | null>(null);
 const imageDimensions = ref({width: 1, height: 1}); // Default to avoid division by zero
 
-const {generateSexyPathD} = useTopoPath();
+const {generateSexyPathD, toAbsolute} = useTopoPath();
 
 /**
  * Handles the image loading to capture its natural dimensions.
@@ -145,7 +145,9 @@ const pathDshadow = computed(() => {
  * Táto metóda spája stredové body, čím vytvára efekt "lezeckého lana".
  */
 const pathDSexy = computed(() => {
-    return generateSexyPathD(pathPoints.value || [], imageDimensions.value);
+    const relPoints = pathPoints.value || []
+    const absPoints = relPoints.map(pt => toAbsolute(pt, imageDimensions.value))
+    return generateSexyPathD(absPoints)
 });
 
 /**

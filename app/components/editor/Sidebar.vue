@@ -16,74 +16,22 @@
         </template>
 
         <div class="space-y-6">
-            <!-- Climb ID -->
-            <UFormField
-                label="ID Cesty"
-                description="UUID"
-            >
-                <UInput
-                    v-model="climbId"
-                    placeholder="Nová cesta bude mať vygenerované ID"
-                    icon="i-heroicons-finger-print"
-                    disabled
-                />
-            </UFormField>
-
-            <!-- Image Upload -->
-            <UFormField
-                label="Obrázok kameňa"
-                description="Nahraj nový obrázok pre kameň"
-            >
-                <UInput
-                    type="file"
-                    @change="handleImageUpload"
-                    icon="i-heroicons-arrow-up-tray"
-                    accept="image/*"
-                />
-            </UFormField>
-
-            <SDivider class="my-6"/>
-
-            <!-- Drawing Mode -->
-            <div>
-                <h2 class="text-lg font-semibold text-primary-500 mb-3">
-                    Režim kreslenia
-                </h2>
-                <div class="grid grid-cols-3 gap-2 mb-2">
-                    <UButton
-                        :variant="mode === 'start' ? 'solid' : 'outline'"
-                        color="primary"
-                        @click="mode = 'start'"
-                        icon="i-heroicons-map-pin"
-                        label="Štart"
-                    />
-                    <UButton
-                        :variant="mode === 'top' ? 'solid' : 'outline'"
-                        color="error"
-                        @click="mode = 'top'"
-                        icon="i-heroicons-flag"
-                        label="Top"
-                    />
-                    <UButton
-                        :variant="mode === 'path' ? 'solid' : 'outline'"
-                        color="info"
-                        @click="mode = 'path'"
-                        icon="i-heroicons-pencil-square"
-                        label="Cesta"
-                    />
-                </div>
-                <UButton
-                    block
-                    color="neutral"
-                    variant="soft"
-                    @click="clearDrawing"
-                    icon="i-heroicons-trash"
+            <template v-if="!imageUrl">
+                <!-- Image Upload -->
+                <UFormField
+                    label="Obrázok kameňa"
+                    description="Nahraj nový obrázok pre kameň"
                 >
-                    Vymazať cestu
-                </UButton>
-            </div>
+                    <UInput
+                        type="file"
+                        @change="handleImageUpload"
+                        icon="i-heroicons-arrow-up-tray"
+                        accept="image/*"
+                    />
+                </UFormField>
 
-            <SDivider class="my-6"/>
+                <SDivider class="my-6"/>
+            </template>
 
             <!-- Climb Details -->
             <div>
@@ -132,6 +80,47 @@
 
             <SDivider class="my-6"/>
 
+            <!-- Drawing Mode -->
+            <div>
+                <h2 class="text-lg font-semibold text-primary-500 mb-3">
+                    Režim kreslenia
+                </h2>
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <UButton
+                        :variant="mode === 'start' ? 'solid' : 'outline'"
+                        color="primary"
+                        @click="mode = 'start'"
+                        icon="i-heroicons-map-pin"
+                        label="Štart"
+                    />
+                    <UButton
+                        :variant="mode === 'top' ? 'solid' : 'outline'"
+                        color="error"
+                        @click="mode = 'top'"
+                        icon="i-heroicons-flag"
+                        label="Top"
+                    />
+                    <UButton
+                        :variant="mode === 'path' ? 'solid' : 'outline'"
+                        color="info"
+                        @click="mode = 'path'"
+                        icon="i-heroicons-pencil-square"
+                        label="Cesta"
+                    />
+                </div>
+                <UButton
+                    block
+                    color="neutral"
+                    variant="soft"
+                    @click="clearDrawing"
+                    icon="i-heroicons-trash"
+                >
+                    Vymazať cestu
+                </UButton>
+            </div>
+
+            <SDivider class="my-6"/>
+
             <UTooltip
                 :delay-duration="0"
                 text="Zatiaľ iba na skúšku"
@@ -174,7 +163,6 @@ defineProps<{
 }>();
 
 // Define models for two-way data binding with the parent component
-const climbId = defineModel<string>('climbId', {default: ''});
 const imageUrl = defineModel<string>('imageUrl', {default: ''});
 const name = defineModel<string>('name', {default: ''});
 const description = defineModel<string>('description');

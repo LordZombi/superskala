@@ -115,7 +115,7 @@ definePageMeta({
                 </div>
             </section>
 
-            <UDivider/>
+            <SDivider/>
 
             <section
                 class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-12"
