@@ -90,12 +90,52 @@ export function useSupabase() {
         return data || [];
     }
 
+    async function uploadBoulderImage(boulderId: string, file: File) {
+        loading.value = true;
+        error.value = null;
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${boulderId}-${Math.random()}.${fileExt}`;
+        const filePath = fileName;
+
+        const { error: uploadError } = await client
+            .storage
+            .from('boulder-photos')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            error.value = uploadError.message;
+            loading.value = false;
+            return null;
+        }
+
+        const { data: { publicUrl } } = client
+            .storage
+            .from('boulder-photos')
+            .getPublicUrl(filePath);
+
+        const { error: updateError } = await client
+            .from('boulders')
+            .update({ image_url: publicUrl })
+            .eq('id', boulderId);
+
+        loading.value = false;
+
+        if (updateError) {
+            error.value = updateError.message;
+            return null;
+        }
+
+        return publicUrl;
+    }
+
     return {
-        supabase: client, // Expose client directly
-        sectors, // Keep existing
         error,
-        loading,
-        getSectorsWithDetails, // Keep existing
         getClimbsForMap,
+        getSectorsWithDetails, // Keep existing
+        loading,
+        sectors, // Keep existing
+        supabase: client, // Expose client directly
+        uploadBoulderImage,
     };
 }

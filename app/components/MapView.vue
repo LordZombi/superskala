@@ -29,23 +29,23 @@ onMounted(async () => {
     )
 
     const map = L.map(mapElement.value, {
-        maxBounds: slovakiaBounds,
-        maxBoundsViscosity: 1.0,
+        // maxBounds: slovakiaBounds,
+        // maxBoundsViscosity: 1.0,
         minZoom: 8,
         maxZoom: 18,
         zoomControl: false,
-    }).setView([48.611123, 17.576012], 16)
+    }).setView([48.611123, 17.576012], 6)
 
     L.tileLayer(`https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${config.public.mapyApiKey}`, {
         attribution: '&copy; Seznam.cz a.s.',
-        bounds: slovakiaBounds,
+        // bounds: slovakiaBounds,
     }).addTo(map)
 
     const climbs = await getClimbsForMap()
 
     climbs.forEach((climb: any) => {
-        const lat = climb.lat
-        const lon = climb.lon
+        const lat = climb.lat || climb.boulder_id.lat || climb.boulder_id.sector_id.lat
+        const lon = climb.lon || climb.boulder_id.lon || climb.boulder_id.sector_id.lon
 
         if (lat && lon) {
             const circle = L.circleMarker([lat, lon], {

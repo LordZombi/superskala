@@ -58,11 +58,30 @@
         </div>
         <div
             v-else
-            class="flex items-center justify-center h-96"
+            class="flex items-center justify-center h-28"
         >
             <UIcon
                 name="i-heroicons-photo"
                 class="w-16 h-16 text-gray-400"
+            />
+        </div>
+
+        <div @click="fileInput?.click()">
+            <input
+                type="file"
+                ref="fileInput"
+                class="hidden"
+                accept="image/*"
+                @change="onFileChange"
+            />
+
+            <UButton
+                label="Nahrať fotku"
+                variant="subtle"
+                color="neutral"
+                class="mt-6"
+                icon="i-heroicons-photo"
+                :loading="isUploading"
             />
         </div>
     </UCard>
@@ -81,32 +100,35 @@ import {UCard, UIcon} from '#components';
  */
 
 export type PathDrawingModeType = 'start' | 'top' | 'path' | undefined
-
-// Define component props
 const props = defineProps<{
-    imageUrl: string;
+    imageUrl: string | null;
     mode: PathDrawingModeType;
+    isUploading?: boolean;
 }>();
 
-// Define models for two-way data binding using the new defineModel syntax
+const emit = defineEmits(['upload']);
+
 const startPos = defineModel<{ x: number; y: number } | null>('startPos');
 const topPos = defineModel<{ x: number; y: number } | null>('topPos');
 const pathPoints = defineModel<{ x: number; y: number }[]>('pathPoints');
 
-// Local state for the component
 const imageContainer = ref<HTMLElement | null>(null);
-const imageDimensions = ref({width: 1, height: 1}); // Default to avoid division by zero
+const fileInput = ref<HTMLInputElement | null>(null);
+const imageDimensions = ref({width: 1, height: 1});
 
 const {generateSexyPathD, toAbsolute} = useTopoPath();
 
-/**
- * Handles the image loading to capture its natural dimensions.
- * @param {Event} event - The load event from the img element.
- */
 const onImageLoad = (event: Event) => {
     const img = event.target as HTMLImageElement;
     if (img.naturalWidth > 0) {
         imageDimensions.value = {width: img.naturalWidth, height: img.naturalHeight};
+    }
+};
+
+const onFileChange = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+        emit('upload', input.files[0]);
     }
 };
 

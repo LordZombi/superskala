@@ -55,8 +55,11 @@
             <!-- Canvas Column -->
             <div class="lg:col-span-2">
                 <EditorCanvas
+                    v-if="selectedBoulderId"
                     :image-url="state.imageUrl"
                     :mode="state.mode"
+                    :is-uploading="loading"
+                    @upload="handleImageUpload"
                     v-model:startPos="state.startPos"
                     v-model:topPos="state.topPos"
                     v-model:pathPoints="state.pathPoints"
@@ -76,7 +79,7 @@ import type {Database} from '~/types/database.types';
 import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
 
 definePageMeta({
-    middleware: 'dev'
+    // middleware: 'dev'
 })
 
 // --- TYPES ---
@@ -143,7 +146,6 @@ onMounted(async () => {
 });
 
 watch(selectedBoulderId, async (newBoulderId) => {
-    console.log(newBoulderId)
     if (!newBoulderId) {
         climbs.value = [];
         state.climbId = '';
@@ -247,4 +249,15 @@ const handleNewClimb = () => {
     state.topPos = null;
     state.pathPoints = [];
 };
+
+const { uploadBoulderImage, loading } = useSupabase()
+
+async function handleImageUpload(file: File) {
+    if (!selectedBoulderId.value) return;
+
+    const newUrl = await uploadBoulderImage(selectedBoulderId.value, file)
+    if (newUrl) {
+        state.imageUrl = newUrl
+    }
+}
 </script>
