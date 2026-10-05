@@ -29,6 +29,33 @@ import SDivider from "~/components/super/SDivider.vue";
                 </p>
             </section>
 
+            <section
+                class="space-y-4"
+            >
+                <h2
+                    class="text-3xl font-black text-neutral-900"
+                >
+                    Odkiaľ sú topá
+                </h2>
+                <p
+                    class="text-neutral-600 leading-relaxed"
+                >
+                    Topá a popisy ciest pochádzajú zo sprievodcov portálu boulder.sk. Ďakujeme!
+                </p>
+                <ULink
+                    to="https://boulder.sk/"
+                    target="_blank"
+                    class="inline-block"
+                >
+                    <!-- brightness-0 prefarbí logo načierno bez úpravy súboru -->
+                    <img
+                        src="/boulder-sk.svg"
+                        alt="boulder.sk (otvorí sa v novej karte)"
+                        class="h-10 brightness-0"
+                    />
+                </ULink>
+            </section>
+
             <SDivider/>
 
             <section
