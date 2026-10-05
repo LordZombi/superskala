@@ -1,15 +1,30 @@
 <template>
-    <div
-        id="map"
-        ref="mapElement"
-    />
+    <!-- Mapa aj tlačidlo sú v tej istej bunke gridu, takže koreň nepotrebuje vlastný position -->
+    <div class="grid">
+        <div
+            id="map"
+            ref="mapElement"
+            class="z-0 col-start-1 row-start-1 min-h-0"
+        />
+
+        <UButton
+            icon="i-heroicons-viewfinder-circle"
+            color="neutral"
+            variant="outline"
+            size="lg"
+            class="z-10 col-start-1 row-start-1 self-end justify-self-end m-4 mb-8 w-auto rounded-full shadow-md"
+            aria-label="Zobraziť moju polohu"
+            :loading="isLocating"
+            @click="locate"
+        />
+    </div>
 </template>
 
 <script
     setup
     lang="ts"
 >
-import {onBeforeUnmount, onMounted, useTemplateRef, watch} from 'vue'
+import {onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
@@ -32,9 +47,60 @@ const emit = defineEmits<{
 
 const mapElement = useTemplateRef('mapElement')
 const config = useRuntimeConfig()
+const toast = useToast()
 
 let map: L.Map | undefined
 const markers = L.layerGroup()
+
+// Poloha používateľa: sleduje sa až po prvom kliknutí na tlačidlo
+const positionLayer = L.layerGroup()
+const isLocating = ref(false)
+let position: L.LatLng | undefined
+let centerOnNextFix = false
+
+const centerOn = (latlng: L.LatLng) => map?.flyTo(latlng, Math.max(map.getZoom(), 16))
+
+const locate = () => {
+    if (!map) return
+    if (position) {
+        centerOn(position)
+        return
+    }
+
+    centerOnNextFix = true
+    isLocating.value = true
+    map.locate({watch: true, enableHighAccuracy: true})
+}
+
+const onLocationFound = ({latlng, accuracy}: L.LocationEvent) => {
+    position = latlng
+    isLocating.value = false
+
+    positionLayer.clearLayers()
+    L.circle(latlng, {radius: accuracy, color: '#3b82f6', weight: 1, fillOpacity: 0.15, interactive: false})
+        .addTo(positionLayer)
+    L.circleMarker(latlng, {radius: 7, color: '#fff', weight: 2, fillColor: '#3b82f6', fillOpacity: 1, interactive: false})
+        .addTo(positionLayer)
+
+    if (centerOnNextFix) {
+        centerOnNextFix = false
+        centerOn(latlng)
+    }
+}
+
+const onLocationError = ({code}: L.ErrorEvent) => {
+    // Ak už polohu máme, jednorazový výpadok signálu ignorujeme
+    if (position) return
+
+    isLocating.value = false
+    map?.stopLocate()
+    toast.add({
+        title: 'Polohu sa nepodarilo zistiť',
+        // 1 = PERMISSION_DENIED
+        description: code === 1 ? 'Povoľ prístup k polohe v nastaveniach prehliadača.' : 'Skús to znova o chvíľu.',
+        color: 'error',
+    })
+}
 
 // L.marker (na rozdiel od circleMarker) je fokusovateľný z klávesnice
 const icon = L.divIcon({
@@ -90,10 +156,13 @@ onMounted(() => {
     }).addTo(map)
 
     markers.addTo(map)
+    positionLayer.addTo(map)
+    map.on('locationfound', onLocationFound)
+    map.on('locationerror', onLocationError)
     renderPoints()
 })
 
 watch(() => points, renderPoints)
 
-onBeforeUnmount(() => map?.remove())
+onBeforeUnmount(() => map?.stopLocate().remove())
 </script>
