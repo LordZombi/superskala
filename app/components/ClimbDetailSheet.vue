@@ -103,10 +103,10 @@
                         </template>
                         {{ climb.boulder?.sector?.name }} • {{ climb.boulder?.name }}
                     </p>
-                    <div class="flex gap-2">
+                    <div class="flex items-center gap-2">
                         <div
                             v-if="climb.is_sit_start"
-                            class="col-auto"
+                            class="flex"
                         >
                             <UBadge
                                 label="SIT START"
@@ -114,15 +114,30 @@
                                 size="sm"
                             />
                         </div>
-                        <UButton
+                        <ULink
                             v-if="climb.video_url"
                             :to="climb.video_url"
                             target="_blank"
-                            icon="i-heroicons-play-solid"
-                            label="VIDEO"
-                            size="xs"
-                            class="w-auto bg-red-700 hover:bg-red-800 text-white"
+                            class="flex"
                             :aria-label="`Video cesty ${climb.name} (otvorí sa v novej karte)`"
+                        >
+                            <UBadge
+                                label="VIDEO"
+                                icon="i-heroicons-play-solid"
+                                size="sm"
+                                class="bg-red-700 hover:bg-red-800 text-white"
+                            />
+                        </ULink>
+                        <UButton
+                            v-if="isDev"
+                            :to="{ path: '/admin/editor', query: { area: climb.boulder?.sector?.area?.id, sector: climb.boulder?.sector_id, boulder: climb.boulder_id, climb: climb.id } }"
+                            icon="i-heroicons-pencil"
+                            label="Upraviť"
+                            color="neutral"
+                            variant="ghost"
+                            size="xs"
+                            class="w-auto"
+                            :aria-label="`Upraviť cestu ${climb.name}`"
                         />
                         <div
                             v-if="climb.is_dangerous"
@@ -199,6 +214,8 @@ const {supabase} = useSupabase()
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
 const isFullscreen = ref(false)
+// Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
+const isDev = import.meta.dev
 
 watch(selectedClimbId, async (id) => {
     if (!id) {

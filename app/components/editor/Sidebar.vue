@@ -284,11 +284,12 @@ const sectors = ref<any[]>([]);
 const boulders = ref<any[]>([]);
 const climbs = ref<any[]>([]);
 
-// Predvýber z URL (?area=&sector=&boulder=) – odkaz „Upraviť“ na stránke oblasti
+// Predvýber z URL (?area=&sector=&boulder=&climb=) – odkazy „Upraviť“ pri kameni a v detaile cesty
 const {query} = useRoute();
 const preselect = {
     sector: typeof query.sector === 'string' ? query.sector : null,
     boulder: typeof query.boulder === 'string' ? query.boulder : null,
+    climb: typeof query.climb === 'string' ? query.climb : null,
 };
 
 // Načítanie základných oblastí pri štarte
@@ -345,6 +346,11 @@ watch(boulderId, async (newBoulderId) => {
 
     const {data} = await client.from('climbs').select('*').eq('boulder_id', newBoulderId).order('name');
     climbs.value = data || [];
+
+    if (preselect.climb) {
+        climbId.value = preselect.climb;
+        preselect.climb = null;
+    }
 });
 
 // Automatické predvyplnenie formulára pri výbere existujúcej cesty
