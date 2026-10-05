@@ -35,14 +35,20 @@
                                 class="text-2xl font-bold leading-none"
                                 v-text="area.name"
                             ></h1>
-                            <UButton
-                                to="/"
-                                icon="i-heroicons-x-mark"
-                                color="neutral"
-                                variant="soft"
-                                class="rounded-full shrink-0 w-auto"
-                                aria-label="Zavrieť oblasť a späť na mapu"
-                            />
+                            <div class="flex shrink-0 gap-2">
+                                <SShareButton
+                                    :title="area.name"
+                                    :path="route.path"
+                                />
+                                <UButton
+                                    to="/"
+                                    icon="i-heroicons-x-mark"
+                                    color="neutral"
+                                    variant="soft"
+                                    class="rounded-full shrink-0 w-auto"
+                                    aria-label="Zavrieť oblasť a späť na mapu"
+                                />
+                            </div>
                         </div>
                         <p class="text-slate-600 font-bold uppercase text-[10px]">
                             {{ plural(sectors.length, ['sektor', 'sektory', 'sektorov']) }} •
@@ -172,10 +178,11 @@
     setup
     lang="ts"
 >
-import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapPoint} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
+import SShareButton from '~/components/super/SShareButton.vue'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 
@@ -188,6 +195,12 @@ const isDev = import.meta.dev
 const route = useRoute()
 const {getAreaWithDetails} = useSupabase()
 const selectedClimbId = useState<string | null>('selectedClimbId')
+
+// Vybraná cesta žije aj v URL (?climb=), aby sa dal zdieľať odkaz priamo na ňu
+selectedClimbId.value = typeof route.query.climb === 'string' ? route.query.climb : null
+
+const stopQuerySync = watch(selectedClimbId, climb =>
+    navigateTo({query: {...route.query, climb: climb ?? undefined}}, {replace: true}))
 
 const area = ref<Awaited<ReturnType<typeof getAreaWithDetails>>>(null)
 const notFound = ref(false)
@@ -275,6 +288,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+    // Pri odchode zo stránky už URL neprepisujeme
+    stopQuerySync()
     selectedClimbId.value = null
 })
 </script>

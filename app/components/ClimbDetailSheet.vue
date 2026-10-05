@@ -110,13 +110,19 @@
                         <h2 class="text-2xl font-bold leading-none">
                             <template v-if="climb.topo_number">{{ climb.topo_number }}. </template>{{ climb.name }}
                         </h2>
-                        <div class="col-auto">
+                        <div class="flex items-center gap-2">
+                            <SShareButton
+                                v-if="climb.boulder?.sector?.area"
+                                size="xs"
+                                :title="climb.name"
+                                :path="`/area/${climb.boulder.sector.area.id}?climb=${climb.id}`"
+                            />
                             <UBadge
                                 v-if="climb.grade"
                                 color="primary"
                                 variant="solid"
                                 size="md"
-                                class="shrink-0"
+                                class="shrink-0 w-auto"
                             >
                                 {{ climb.grade.font }}
                             </UBadge>
@@ -249,6 +255,7 @@ import {computed, ref, useTemplateRef, watch} from 'vue'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 import SDivider from "~/components/super/SDivider.vue";
+import SShareButton from "~/components/super/SShareButton.vue";
 import TopoImage from "~/components/TopoImage.vue";
 
 // Prvá cesta susedného kameňa – poradie pozná len stránka, ktorá detail otvára
