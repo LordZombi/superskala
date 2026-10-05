@@ -1,9 +1,3 @@
-<script
-    setup
-    lang="ts"
->
-const isDev = import.meta.dev;
-</script>
 <template>
     <header class="">
         <div
@@ -22,6 +16,7 @@ const isDev = import.meta.dev;
                 <UButton
                     to="/"
                     icon="i-heroicons-map"
+                    aria-label="Mapa"
                     color="neutral"
                     variant="ghost"
                     class="rounded-full"
@@ -30,15 +25,16 @@ const isDev = import.meta.dev;
                 <UButton
                     to="/admin/editor"
                     icon="i-heroicons-pencil"
+                    aria-label="Topo editor"
                     color="neutral"
                     variant="ghost"
                     class="rounded-full"
                 />
 
                 <UButton
-                    v-if="isDev"
                     to="/info"
                     icon="i-heroicons-information-circle"
+                    aria-label="O projekte"
                     color="neutral"
                     variant="ghost"
                     class="rounded-full"

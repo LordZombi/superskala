@@ -23,3 +23,9 @@ logs
 .env.*
 !.env.example
 /supabase/.temp/
+
+# Zdrojové topo PDF (cudzí obsah, nepatrí do nasadenej appky)
+/public/topos/
+
+# Tajomstvá
+stripe_backup_code.txt

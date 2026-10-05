@@ -8,68 +8,76 @@
           'lg:top-12 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[30vw] lg:min-w-120 lg:h-auto lg:rounded-none',
         ]"
     >
-        <div class="relative">
-            <div class="absolute top-4 right-4 z-10">
+        <div :class="['relative', {'min-h-16': !climb?.boulder?.image_url}]">
+            <div class="absolute top-4 left-4 z-10">
+                <UButton
+                    icon="i-heroicons-arrow-left"
+                    color="neutral"
+                    variant="soft"
+                    class="rounded-full"
+                    aria-label="Späť na oblasť"
+                    @click="selectedClimbId = null"
+                />
+            </div>
+
+            <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
                 <UButton
                     icon="i-heroicons-x-mark"
                     color="neutral"
                     variant="soft"
                     class="rounded-full"
+                    aria-label="Zavrieť detail cesty"
                     @click="selectedClimbId = null"
                 />
-            </div>
-
-            <div
-                v-if="climb?.boulder?.image_url"
-                class="relative"
-            >
-                <img
-                    alt=""
-                    :src="climb.boulder.image_url"
-                    class="w-full aspect-4/3 max-h-[40vh] object-cover"
-                    @load="onImageLoad"
+                <UButton
+                    v-if="climb?.boulder?.image_url"
+                    icon="i-heroicons-arrows-pointing-out"
+                    color="neutral"
+                    variant="soft"
+                    class="rounded-full"
+                    aria-label="Zobraziť celú fotku"
+                    @click="isFullscreen = true"
                 />
-                <svg
-                    v-if="dims.width > 1"
-                    :viewBox="`0 0 ${dims.width} ${dims.height}`"
-                    class="absolute inset-0 w-full h-full pointer-events-none"
-                >
-                    <path
-                        v-if="pathDSexy"
-                        :d="pathDSexy"
-                        class="stroke-white pointer-events-none"
-                        stroke-width="20"
-                        fill="none"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-
-                    <circle
-                        v-for="item in startsOfAllClimbs"
-                        :key="item.id"
-                        :cx="item.point.x"
-                        :cy="item.point.y"
-                        :r="35"
-                        :class="[
-                          'pointer-events-auto cursor-pointer transition-all duration-200 shadow-sm',
-                          item.isActive
-                            ? 'fill-primary-500 stroke-white stroke-8'
-                            : 'fill-white/80 stroke-neutral-400 stroke-4 hover:fill-white'
-                        ]"
-                        @click="selectedClimbId = item.id"
-                    />
-                </svg>
             </div>
+
+            <TopoImage
+                v-if="climb?.boulder?.image_url"
+                :image-url="climb.boulder.image_url"
+                :alt="`Fotka kameňa ${climb.boulder.name}`"
+                :climbs="otherClimbs"
+                :selected-id="selectedClimbId"
+                @select="id => selectedClimbId = id"
+            />
         </div>
+
+        <UModal
+            v-if="climb?.boulder?.image_url"
+            v-model:open="isFullscreen"
+            fullscreen
+            :title="climb.boulder.name"
+            :description="climb.name"
+            :ui="{ body: 'p-0 sm:p-0 bg-neutral-950', close: 'w-auto' }"
+        >
+            <template #body>
+                <TopoImage
+                    contain
+                    class="h-full"
+                    :image-url="climb.boulder.image_url"
+                    :alt="`Fotka kameňa ${climb.boulder.name}`"
+                    :climbs="otherClimbs"
+                    :selected-id="selectedClimbId"
+                    @select="id => selectedClimbId = id"
+                />
+            </template>
+        </UModal>
 
         <div class="p-4 overflow-y-auto flex-1 space-y-6">
             <div v-if="climb">
                 <div class="space-y-1">
                     <div class="flex justify-between items-start gap-2">
-                        <h2
-                            class="text-2xl font-bold leading-none"
-                            v-text="climb.name"
-                        ></h2>
+                        <h2 class="text-2xl font-bold leading-none">
+                            <template v-if="climb.topo_number">{{ climb.topo_number }}. </template>{{ climb.name }}
+                        </h2>
                         <div class="col-auto">
                             <UBadge
                                 v-if="climb.grade"
@@ -83,6 +91,16 @@
                         </div>
                     </div>
                     <p class="text-slate-500 font-bold uppercase text-[10px]">
+                        <template v-if="climb.boulder?.sector?.area">
+                            <ULink
+                                :to="`/area/${climb.boulder.sector.area.id}`"
+                                class="underline"
+                                @click="selectedClimbId = null"
+                            >
+                                {{ climb.boulder.sector.area.name }}
+                            </ULink>
+                            •
+                        </template>
                         {{ climb.boulder?.sector?.name }} • {{ climb.boulder?.name }}
                     </p>
                     <div class="flex gap-2">
@@ -96,6 +114,16 @@
                                 size="sm"
                             />
                         </div>
+                        <UButton
+                            v-if="climb.video_url"
+                            :to="climb.video_url"
+                            target="_blank"
+                            icon="i-heroicons-play-solid"
+                            label="VIDEO"
+                            size="xs"
+                            class="w-auto bg-red-700 hover:bg-red-800 text-white"
+                            :aria-label="`Video cesty ${climb.name} (otvorí sa v novej karte)`"
+                        />
                         <div
                             v-if="climb.is_dangerous"
                             class="col-auto"
@@ -135,7 +163,7 @@
                                 @click="selectedClimbId = other.id"
                             >
                             <span :class="[other.id === selectedClimbId ? 'font-bold' : 'font-medium']">
-                                {{ other.name }}
+                                <template v-if="other.topo_number">{{ other.topo_number }}. </template>{{ other.name }}
                             </span>
                                 <span class="text-[10px] font-mono">{{ other.grade?.font || '?' }}</span>
                             </UButton>
@@ -161,16 +189,16 @@
     setup
     lang="ts"
 >
-import {computed, ref, watch} from 'vue'
+import {ref, watch} from 'vue'
 import {useSupabase} from '~/composables/useSupabase'
 import SDivider from "~/components/super/SDivider.vue";
+import TopoImage from "~/components/TopoImage.vue";
 
 const selectedClimbId = useState<string | null>('selectedClimbId')
 const {supabase} = useSupabase()
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
-const dims = ref({width: 1, height: 1})
-const {generateSexyPathD, parsePathString, toAbsolute} = useTopoPath();
+const isFullscreen = ref(false)
 
 watch(selectedClimbId, async (id) => {
     if (!id) {
@@ -182,7 +210,7 @@ watch(selectedClimbId, async (id) => {
     // 1. Načítame detail vybratej cesty
     const {data: currentClimb} = await supabase
         .from('climbs')
-        .select('*, grade:grades(font), boulder:boulders(*, sector:sectors(name, lat, lon))')
+        .select('*, grade:grades(font), boulder:boulders(*, sector:sectors(name, lat, lon, area:areas(id, name)))')
         .eq('id', id)
         .single()
 
@@ -192,37 +220,12 @@ watch(selectedClimbId, async (id) => {
     if (currentClimb?.boulder_id) {
         const {data: list} = await supabase
             .from('climbs')
-            .select('id, name, topo_path, grade:grades(font)')
+            .select('*, grade:grades(font)')
             .eq('boulder_id', currentClimb.boulder_id)
             .order('name')
 
-        otherClimbs.value = list || []
+        // Poradie ako v tope (číslo na fotke), cesty bez čísla na koniec
+        otherClimbs.value = (list || []).sort((a, b) => (a.topo_number ?? Infinity) - (b.topo_number ?? Infinity))
     }
 }, {immediate: true})
-
-const onImageLoad = (e: any) => {
-    dims.value = {width: e.target.naturalWidth, height: e.target.naturalHeight}
-}
-
-const startsOfAllClimbs = computed(() => {
-    if (!otherClimbs.value.length || dims.value.width <= 1) return []
-
-    return otherClimbs.value.map(c => {
-        const relPoints = parsePathString(c.topo_path)
-        if (!relPoints[0]) return null
-
-        return {
-            id: c.id,
-            point: toAbsolute(relPoints[0], dims.value),
-            isActive: c.id === selectedClimbId.value
-        }
-    }).filter(i => i !== null)
-})
-
-const pathDSexy = computed(() => {
-    if (!climb.value?.topo_path || dims.value.width <= 1) return ''
-    const relPoints = parsePathString(climb.value.topo_path)
-    const absPoints = relPoints.map(pt => toAbsolute(pt, dims.value))
-    return generateSexyPathD(absPoints)
-})
 </script>

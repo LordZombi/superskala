@@ -3,10 +3,6 @@
     lang="ts"
 >
 import SDivider from "~/components/super/SDivider.vue";
-
-definePageMeta({
-    middleware: 'dev'
-})
 </script>
 
 <template>
@@ -55,23 +51,14 @@ definePageMeta({
                     </p>
                 </div>
 
-                <div
-                    class="flex flex-wrap gap-4"
-                >
-                    <UButton
-                        icon="i-heroicons-heart"
-                        label="Kúpiť kávu (3€)"
-                        color="primary"
-                        size="lg"
-                    />
-                    <UButton
-                        icon="i-heroicons-bolt"
-                        label="Podporiť rozvoj (10€)"
-                        color="primary"
-                        variant="outline"
-                        size="lg"
-                    />
-                </div>
+                <UButton
+                    icon="i-heroicons-heart"
+                    label="Podporiť cez Revolut"
+                    to="https://revolut.me/zombi"
+                    target="_blank"
+                    color="primary"
+                    size="lg"
+                />
             </section>
 
             <section
@@ -109,7 +96,7 @@ definePageMeta({
                         <p
                             class="text-sm text-neutral-700"
                         >
-                            <strong>Magnézium:</strong> Používaj ho s mierou a po dolezení chytov ich poriadne vykefuj.
+                            <strong>Magnézium:</strong> Používaj ho s mierou a po lezení chyty poriadne vykefuj.
                         </p>
                     </div>
                 </div>
@@ -123,15 +110,19 @@ definePageMeta({
                 <div
                     class="space-y-1"
                 >
-                    <h3
+                    <h2
                         class="font-bold text-neutral-900"
                     >
                         Máš pripomienky?
-                    </h3>
+                    </h2>
                     <p
                         class="text-neutral-500"
                     >
-                        Napíš nám na info@superskala.sk
+                        Napíš nám na
+                        <ULink
+                            to="mailto:info@superskala.sk"
+                            class="underline"
+                        >info@superskala.sk</ULink>
                     </p>
                 </div>
                 <div
@@ -143,6 +134,7 @@ definePageMeta({
                     <UButton
                         href="https://www.instagram.com/lordzombi"
                         icon="i-simple-icons-instagram"
+                        aria-label="Instagram – lordzombi"
                         color="neutral"
                         variant="ghost"
                         target="_blank"
@@ -150,6 +142,7 @@ definePageMeta({
                     <UButton
                         href="https://github.com/LordZombi/superskala"
                         icon="i-simple-icons-github"
+                        aria-label="GitHub – zdrojový kód Superskál"
                         color="neutral"
                         variant="ghost"
                         target="_blank"

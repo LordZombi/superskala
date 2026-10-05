@@ -29,65 +29,49 @@ export function useSupabase() {
     }
 
     /**
-     * Fetches climbs with their related boulder, sector, and grade information for map display.
-     * @returns An array of climbs with nested data.
+     * Areas with their sector coordinates – one map marker per area.
      */
-    async function getClimbsForMap() {
+    async function getAreasForMap() {
         loading.value = true;
         error.value = null;
 
-        // Define the exact shape of the data we want to fetch
-        type ClimbForMap = Database['public']['Tables']['climbs']['Row'] & {
-            grade: Database['public']['Tables']['grades']['Row'] | null;
-            boulder_id: (Database['public']['Tables']['boulders']['Row'] & {
-                sectors: Database['public']['Tables']['sectors']['Row'] | null;
-            }) | null;
-        };
-
         const {data, error: err} = await client
-            .from('climbs')
-            .select(`
-        id,
-        name,
-        topo_path,
-        description,
-        is_sit_start,
-        is_dangerous,
-        lat,
-        lon,
-        start_x,
-        start_y,
-        top_x,
-        top_y,
-        grade_id (
-          font,
-          value
-        ),
-        boulder_id (
-          id,
-          name,
-          image_url,
-          lat,
-          lon,
-          sector_id (
-            id,
-            name,
-            lat,
-            lon
-          )
-        )
-      `)
-            .returns<ClimbForMap[]>(); // Explicitly cast the return type
+            .from('areas')
+            .select('id, name, lat, lon, sectors(lat, lon)');
 
         loading.value = false;
 
         if (err) {
             error.value = err.message;
-            console.error('Error fetching climbs for map:', err);
+            console.error('Error fetching areas for map:', err);
             return [];
         }
 
         return data || [];
+    }
+
+    /**
+     * One area with its whole tree: sectors → boulders → climbs (with grade).
+     */
+    async function getAreaWithDetails(areaId: string) {
+        loading.value = true;
+        error.value = null;
+
+        const {data, error: err} = await client
+            .from('areas')
+            .select('*, sectors(*, boulders(id, name, image_url, climbs(*, grade:grades(font, value))))')
+            .eq('id', areaId)
+            .maybeSingle();
+
+        loading.value = false;
+
+        if (err) {
+            error.value = err.message;
+            console.error('Error fetching area:', err);
+            return null;
+        }
+
+        return data;
     }
 
     async function uploadBoulderImage(boulderId: string, file: File) {
@@ -131,7 +115,8 @@ export function useSupabase() {
 
     return {
         error,
-        getClimbsForMap,
+        getAreasForMap,
+        getAreaWithDetails,
         getSectorsWithDetails, // Keep existing
         loading,
         sectors, // Keep existing

@@ -1,47 +1,20 @@
 <template>
-    <div class="bg-gray-50 min-h-screen p-4 lg:p-8">
-        <div class="max-w-8xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="bg-neutral-50 min-h-screen p-4 lg:p-8">
+        <div class="max-w-screen-2xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            <!-- Control Column -->
             <div class="lg:col-span-1 space-y-4">
-                <UCard>
-                    <template #header>
-                        <h2 class="text-lg font-semibold">1. Vyber Kameň a Cestu</h2>
-                    </template>
-                    <div class="space-y-4">
-                        <UFormField
-                            label="Kameň"
-                        >
-                            <USelectMenu
-                                v-model="selectedBoulderId"
-                                :items="itemsBoulders"
-                                placeholder="Vyber kameň"
-                                value-key="id"
-                            />
-                        </UFormField>
-
-                        <UFormField
-                            label="Cesta"
-                        >
-                            <USelectMenu
-                                v-model="state.climbId"
-                                :disabled="!selectedBoulderId"
-                                :items="itemsClimbs"
-                                placeholder="Vyber cestu"
-                                value-key="id"
-                            />
-                        </UFormField>
-                    </div>
-                </UCard>
-
                 <EditorSidebar
                     @save="handleSave"
                     @newClimb="handleNewClimb"
                     :available-grades="availableGrades"
+                    v-model:areaId="state.areaId"
+                    v-model:sectorId="state.sectorId"
+                    v-model:boulderId="selectedBoulderId"
                     v-model:climbId="state.climbId"
                     v-model:imageUrl="state.imageUrl"
                     v-model:name="state.name"
                     v-model:description="state.description"
+                    v-model:videoUrl="state.videoUrl"
                     v-model:gradeId="state.gradeId"
                     v-model:isSitStart="state.isSitStart"
                     v-model:isDangerous="state.isDangerous"
@@ -52,7 +25,6 @@
                 />
             </div>
 
-            <!-- Canvas Column -->
             <div class="lg:col-span-2">
                 <EditorCanvas
                     v-if="selectedBoulderId"
@@ -73,25 +45,20 @@
     setup
     lang="ts"
 >
-import {reactive, ref, watch} from 'vue';
-import {useDebounceFn} from '@vueuse/core';
-import type {Database} from '~/types/database.types';
-import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
-
-definePageMeta({
-    // middleware: 'dev'
-})
+import { reactive, ref, onMounted, watch, nextTick } from 'vue';
+import { useDebounceFn } from '@vueuse/core';
+import type { Database } from '~/types/database.types';
+import type { PathDrawingModeType } from "~/components/editor/Canvas.vue";
 
 // --- TYPES ---
 type Grade = Database['public']['Tables']['grades']['Row'];
-type Climb = Database['public']['Tables']['climbs']['Row'];
-type Boulder = Database['public']['Tables']['boulders']['Row'];
 
 interface EditorState {
     climbId: string;
     imageUrl: string;
     name: string;
     description?: string;
+    videoUrl?: string;
     gradeId?: number;
     isSitStart: boolean;
     isDangerous: boolean;
@@ -99,6 +66,8 @@ interface EditorState {
     startPos: { x: number; y: number } | null;
     topPos: { x: number; y: number } | null;
     pathPoints: { x: number; y: number }[];
+    areaId: string | null;
+    sectorId: string | null;
 }
 
 // --- STATE ---
@@ -108,6 +77,7 @@ const state = reactive<EditorState>({
     imageUrl: '',
     name: '',
     description: '',
+    videoUrl: '',
     gradeId: undefined,
     isSitStart: false,
     isDangerous: false,
@@ -115,72 +85,23 @@ const state = reactive<EditorState>({
     startPos: null,
     topPos: null,
     pathPoints: [],
+    areaId: null,
+    sectorId: null,
 });
 
-const boulders = ref<Boulder[]>([]);
-const climbs = ref<Climb[]>([]);
 const availableGrades = ref<Grade[]>([]);
 const selectedBoulderId = ref<string>();
 
-const itemsBoulders = computed(() => {
-    return boulders.value.map(boulder => ({
-        id: boulder.id,
-        label: boulder.name,
-    }))
-});
-
-const itemsClimbs = computed(() => {
-    return climbs.value.map(climb => ({
-        id: climb.id,
-        label: climb.name,
-    }))
-})
-
 // --- DATA FETCHING ---
 onMounted(async () => {
-    const {data: bouldersData} = await client.from('boulders').select('*').order('name');
-    if (bouldersData) boulders.value = bouldersData;
-
-    const {data: gradesData} = await client.from('grades').select('*').order('value');
+    const { data: gradesData } = await client.from('grades').select('*').order('value');
     if (gradesData) availableGrades.value = gradesData;
 });
-
-watch(selectedBoulderId, async (newBoulderId) => {
-    if (!newBoulderId) {
-        climbs.value = [];
-        state.climbId = '';
-        state.imageUrl = '';
-        return;
-    }
-    const selectedBoulder = boulders.value.find(b => b.id === newBoulderId);
-    state.imageUrl = selectedBoulder?.image_url ?? '';
-    await fetchClimbsForBoulder(newBoulderId);
-});
-
-watch(() => state.climbId, (newClimbId) => {
-    if (!newClimbId) return;
-    const climbData = climbs.value.find(c => c.id === newClimbId);
-    if (climbData) {
-        state.name = climbData.name;
-        state.description = climbData.description ?? undefined;
-        state.gradeId = climbData.grade_id ?? undefined;
-        state.isSitStart = climbData.is_sit_start ?? false;
-        state.isDangerous = climbData.is_dangerous ?? false;
-        state.startPos = climbData.start_x && climbData.start_y ? {x: climbData.start_x, y: climbData.start_y} : null;
-        state.topPos = climbData.top_x && climbData.top_y ? {x: climbData.top_x, y: climbData.top_y} : null;
-        state.pathPoints = climbData.topo_path ? pathStringToPoints(climbData.topo_path) : [];
-    }
-});
-
-const fetchClimbsForBoulder = async (boulderId: string) => {
-    const {data} = await client.from('climbs').select('*').eq('boulder_id', boulderId).order('name');
-    if (data) climbs.value = data;
-};
 
 // --- IMAGE HANDLING ---
 const debouncedUpdateBoulderImageUrl = useDebounceFn(async () => {
     if (!selectedBoulderId.value || !state.imageUrl) return;
-    const {error} = await client.from('boulders').update({image_url: state.imageUrl}).eq('id', selectedBoulderId.value);
+    const { error } = await client.from('boulders').update({ image_url: state.imageUrl }).eq('id', selectedBoulderId.value);
     if (error) console.error('Failed to update boulder image URL:', error);
 }, 1000);
 
@@ -198,14 +119,14 @@ const pathStringToPoints = (path: string): { x: number, y: number }[] => {
     if (!path) return [];
     return path.replace('M ', '').split(' L ').map(p => {
         const [x, y] = p.split('% ').map(val => parseFloat(val));
-        if (!x || !y) return {x: 0, y: 0};
-        return {x, y};
+        if (!x || !y) return { x: 0, y: 0 };
+        return { x, y };
     });
 };
 
 const handleSave = async () => {
     if (!selectedBoulderId.value) {
-        alert('Please select a boulder first.');
+        alert('Prosím, najskôr vyber boulder.');
         return;
     }
 
@@ -213,6 +134,7 @@ const handleSave = async () => {
         boulder_id: selectedBoulderId.value,
         name: state.name,
         description: state.description,
+        video_url: state.videoUrl || null,
         grade_id: state.gradeId,
         is_sit_start: state.isSitStart,
         is_dangerous: state.isDangerous,
@@ -223,17 +145,31 @@ const handleSave = async () => {
         topo_path: pathPointsToSvgString(state.pathPoints),
     };
 
-    if (state.climbId) { // --- UPDATE EXISTING CLIMB ---
-        const {error} = await client.from('climbs').update(dataToSave).eq('id', state.climbId);
-        if (error) alert(`Update failed: ${error.message}`);
-        else alert('Climb updated successfully!');
-    } else { // --- INSERT NEW CLIMB ---
-        const {data, error} = await client.from('climbs').insert(dataToSave).select().single();
-        if (error) alert(`Insert failed: ${error.message}`);
+    if (state.climbId) { // --- UPDATE EXISTUJÚCEJ CESTY ---
+        const { error } = await client.from('climbs').update(dataToSave).eq('id', state.climbId);
+        if (error) alert(`Update zlyhal: ${error.message}`);
         else {
-            alert('New climb created successfully!');
-            await fetchClimbsForBoulder(selectedBoulderId.value); // Refresh climb list
-            if (data) state.climbId = data.id; // Select the newly created climb
+            alert('Cesta úspešne upravená!');
+            // Trik na vynútenie re-fetchu v sidebare (prebliknutie ID)
+            const bId = selectedBoulderId.value;
+            const cId = state.climbId;
+            selectedBoulderId.value = undefined;
+            nextTick(() => {
+                selectedBoulderId.value = bId;
+                state.climbId = cId;
+            });
+        }
+    } else { // --- ZÁPIS NOVEJ CESTY ---
+        const { data, error } = await client.from('climbs').insert(dataToSave).select().single();
+        if (error) alert(`Vytvorenie zlyhalo: ${error.message}`);
+        else {
+            alert('Nová cesta úspešne vytvorená!');
+            const bId = selectedBoulderId.value;
+            selectedBoulderId.value = undefined;
+            nextTick(() => {
+                selectedBoulderId.value = bId;
+                if (data) state.climbId = data.id;
+            });
         }
     }
 };
@@ -242,6 +178,7 @@ const handleNewClimb = () => {
     state.climbId = '';
     state.name = '';
     state.description = '';
+    state.videoUrl = '';
     state.gradeId = undefined;
     state.isSitStart = false;
     state.isDangerous = false;
@@ -250,14 +187,14 @@ const handleNewClimb = () => {
     state.pathPoints = [];
 };
 
-const { uploadBoulderImage, loading } = useSupabase()
+const { uploadBoulderImage, loading } = useSupabase();
 
 async function handleImageUpload(file: File) {
     if (!selectedBoulderId.value) return;
 
-    const newUrl = await uploadBoulderImage(selectedBoulderId.value, file)
+    const newUrl = await uploadBoulderImage(selectedBoulderId.value, file);
     if (newUrl) {
-        state.imageUrl = newUrl
+        state.imageUrl = newUrl;
     }
 }
 </script>

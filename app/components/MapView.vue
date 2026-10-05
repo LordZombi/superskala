@@ -2,7 +2,6 @@
     <div
         id="map"
         ref="mapElement"
-        class="h-full w-full"
     />
 </template>
 
@@ -10,62 +9,91 @@
     setup
     lang="ts"
 >
-import {onMounted, ref} from 'vue'
+import {onBeforeUnmount, onMounted, useTemplateRef, watch} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import {useSupabase} from '~/composables/useSupabase'
 
-const selectedClimbId = useState<string | null>('selectedClimbId')
-const mapElement = ref<HTMLElement | null>(null)
-const {getClimbsForMap} = useSupabase()
+export interface MapPoint {
+    id: string
+    lat: number
+    lon: number
+    label: string
+}
+
+const {points, permanentLabels = false, fitToPoints = false} = defineProps<{
+    points: MapPoint[]
+    permanentLabels?: boolean
+    fitToPoints?: boolean
+}>()
+
+const emit = defineEmits<{
+    select: [id: string]
+}>()
+
+const mapElement = useTemplateRef('mapElement')
 const config = useRuntimeConfig()
 
-onMounted(async () => {
+let map: L.Map | undefined
+const markers = L.layerGroup()
+
+// L.marker (na rozdiel od circleMarker) je fokusovateľný z klávesnice
+const icon = L.divIcon({
+    className: '',
+    html: '<span class="block size-4 rounded-full bg-emerald-500 ring-2 ring-white"></span>',
+    iconSize: [16, 16],
+})
+
+const renderPoints = () => {
+    if (!map) return
+
+    markers.clearLayers()
+
+    points.forEach((point) => {
+        const marker = L.marker([point.lat, point.lon], {icon}).addTo(markers)
+
+        marker.getElement()?.setAttribute('aria-label', point.label)
+        marker.on('click', () => emit('select', point.id))
+        // Leaflet sám Enter/medzerník na markeri neobsluhuje
+        marker.on('keydown', ({originalEvent}) => {
+            if (originalEvent.key !== 'Enter' && originalEvent.key !== ' ') return
+
+            originalEvent.preventDefault()
+            emit('select', point.id)
+        })
+        marker.bindTooltip(point.label, {
+            // Trvalé menovky idú vedľa bodu, aby sa blízke sektory neprekrývali
+            direction: permanentLabels ? 'right' : 'top',
+            offset: permanentLabels ? [8, 0] : [0, -8],
+            permanent: permanentLabels,
+        })
+    })
+
+    if (fitToPoints && points.length) {
+        map.fitBounds(L.latLngBounds(points.map(point => [point.lat, point.lon])), {
+            padding: [48, 48],
+            maxZoom: 16,
+        })
+    }
+}
+
+onMounted(() => {
     if (!mapElement.value) return
 
-    const slovakiaBounds = L.latLngBounds(
-        [47.7, 16.8],
-        [49.6, 22.6]
-    )
-
-    const map = L.map(mapElement.value, {
-        // maxBounds: slovakiaBounds,
-        // maxBoundsViscosity: 1.0,
-        minZoom: 8,
+    map = L.map(mapElement.value, {
+        minZoom: 5,
         maxZoom: 18,
         zoomControl: false,
     }).setView([48.611123, 17.576012], 6)
 
     L.tileLayer(`https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${config.public.mapyApiKey}`, {
         attribution: '&copy; Seznam.cz a.s.',
-        // bounds: slovakiaBounds,
     }).addTo(map)
 
-    const climbs = await getClimbsForMap()
-
-    climbs.forEach((climb: any) => {
-        const lat = climb.lat || climb.boulder_id.lat || climb.boulder_id.sector_id.lat
-        const lon = climb.lon || climb.boulder_id.lon || climb.boulder_id.sector_id.lon
-
-        if (lat && lon) {
-            const circle = L.circleMarker([lat, lon], {
-                radius: 8,
-                color: "white",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 1,
-                className: 'fill-emerald-500 focus:outline-none focus:stroke-emerald-500'
-            }).addTo(map)
-
-            circle.on('click', () => {
-                selectedClimbId.value = climb.id
-            })
-
-            circle.bindTooltip(climb.name, {
-                direction: 'top',
-                offset: [0, -5]
-            })
-        }
-    })
+    markers.addTo(map)
+    renderPoints()
 })
+
+watch(() => points, renderPoints)
+
+onBeforeUnmount(() => map?.remove())
 </script>

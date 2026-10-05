@@ -92,8 +92,10 @@ export type Database = {
           start_x: number | null
           start_y: number | null
           top_x: number | null
+          topo_number: number | null
           top_y: number | null
           topo_path: string | null
+          video_url: string | null
         }
         Insert: {
           boulder_id: string
@@ -110,8 +112,10 @@ export type Database = {
           start_x?: number | null
           start_y?: number | null
           top_x?: number | null
+          topo_number?: number | null
           top_y?: number | null
           topo_path?: string | null
+          video_url?: string | null
         }
         Update: {
           boulder_id?: string
@@ -128,8 +132,10 @@ export type Database = {
           start_x?: number | null
           start_y?: number | null
           top_x?: number | null
+          topo_number?: number | null
           top_y?: number | null
           topo_path?: string | null
+          video_url?: string | null
         }
         Relationships: [
           {
@@ -169,6 +175,7 @@ export type Database = {
       sectors: {
         Row: {
           area_id: string
+          description: string | null
           id: string
           lat: number | null
           lon: number | null
@@ -176,6 +183,7 @@ export type Database = {
         }
         Insert: {
           area_id: string
+          description?: string | null
           id?: string
           lat?: number | null
           lon?: number | null
@@ -183,6 +191,7 @@ export type Database = {
         }
         Update: {
           area_id?: string
+          description?: string | null
           id?: string
           lat?: number | null
           lon?: number | null
