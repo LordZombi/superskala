@@ -1,6 +1,16 @@
 import {ref} from 'vue';
 import type {Database} from '~/types/database.types';
 
+export interface SearchItem {
+    type: 'area' | 'sector' | 'climb'
+    id: string
+    name: string
+    /** Second line of a result: where the item belongs */
+    detail: string
+    grade?: string
+    to: string
+}
+
 export function useSupabase() {
     const client = useSupabaseClient<Database>();
     const sectors = ref<any>([]); // Keep existing for now, but consider typing
@@ -48,6 +58,65 @@ export function useSupabase() {
         }
 
         return data || [];
+    }
+
+    /**
+     * Names of all areas, sectors and climbs for the client-side search.
+     */
+    async function getSearchIndex(): Promise<SearchItem[]> {
+        const PAGE = 1000; // Supabase returns at most 1000 rows per request
+        const climbs = [];
+
+        for (let from = 0; ; from += PAGE) {
+            const {data} = await client
+                .from('climbs')
+                .select('id, name, grade:grades(font), boulder:boulders(sector:sectors(area:areas(id, name)))')
+                .order('name')
+                .range(from, from + PAGE - 1);
+
+            climbs.push(...data ?? []);
+            if ((data?.length ?? 0) < PAGE) break;
+        }
+
+        const {data: sectors} = await client
+            .from('sectors')
+            .select('id, name, area:areas(id, name)')
+            .order('name');
+
+        const {data: areas} = await client
+            .from('areas')
+            .select('id, name')
+            .order('name');
+
+        return [
+            ...(areas ?? []).map((area): SearchItem => ({
+                type: 'area',
+                id: area.id,
+                name: area.name,
+                detail: 'Oblasť',
+                to: `/area/${area.id}`,
+            })),
+            ...(sectors ?? []).flatMap((sector): SearchItem[] => sector.area ? [{
+                type: 'sector',
+                id: sector.id,
+                name: sector.name,
+                detail: `Sektor • ${sector.area.name}`,
+                to: `/area/${sector.area.id}?sector=${sector.id}`,
+            }] : []),
+            // Climbs outside of any area have no page to open
+            ...climbs.flatMap((climb): SearchItem[] => {
+                const area = climb.boulder?.sector?.area;
+
+                return area ? [{
+                    type: 'climb',
+                    id: climb.id,
+                    name: climb.name,
+                    detail: area.name,
+                    grade: climb.grade?.font,
+                    to: `/area/${area.id}?climb=${climb.id}`,
+                }] : [];
+            }),
+        ];
     }
 
     /**
@@ -117,6 +186,7 @@ export function useSupabase() {
         error,
         getAreasForMap,
         getAreaWithDetails,
+        getSearchIndex,
         getSectorsWithDetails, // Keep existing
         loading,
         sectors, // Keep existing

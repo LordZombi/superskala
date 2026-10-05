@@ -1,5 +1,5 @@
 <template>
-    <header class="">
+    <header class="relative z-30">
         <div
             class="flex justify-between items-center pointer-events-auto bg-white px-4 py-2"
         >
@@ -13,6 +13,17 @@
             </NuxtLink>
 
             <div class="flex items-center gap-2">
+                <UButton
+                    ref="searchButton"
+                    icon="i-heroicons-magnifying-glass"
+                    aria-label="Hľadať"
+                    :aria-expanded="isSearchOpen"
+                    color="neutral"
+                    variant="ghost"
+                    class="rounded-full"
+                    @click="isSearchOpen = !isSearchOpen"
+                />
+
                 <UButton
                     to="/"
                     icon="i-heroicons-map"
@@ -43,5 +54,31 @@
                 <UColorModeButton/>
             </div>
         </div>
+
+        <SSearch
+            v-if="isSearchOpen"
+            @close="closeSearch"
+        />
     </header>
 </template>
+
+<script
+    setup
+    lang="ts"
+>
+import {nextTick, ref, useTemplateRef, watch} from 'vue'
+import SSearch from '~/components/super/SSearch.vue'
+
+const route = useRoute()
+const isSearchOpen = ref(false)
+const searchButton = useTemplateRef('searchButton')
+
+const closeSearch = async () => {
+    isSearchOpen.value = false
+    // Fokus sa vráti na tlačidlo, inak by po zavretí ostal stratený
+    await nextTick()
+    searchButton.value?.$el.focus()
+}
+
+watch(() => route.fullPath, () => isSearchOpen.value = false)
+</script>

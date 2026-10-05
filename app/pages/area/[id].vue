@@ -202,6 +202,9 @@ selectedClimbId.value = typeof route.query.climb === 'string' ? route.query.clim
 const stopQuerySync = watch(selectedClimbId, climb =>
     navigateTo({query: {...route.query, climb: climb ?? undefined}}, {replace: true}))
 
+// Opačný smer: odkaz z hľadania na inú cestu v tej istej oblasti stránku neprekreslí
+watch(() => route.query.climb, climb => selectedClimbId.value = typeof climb === 'string' ? climb : null)
+
 const area = ref<Awaited<ReturnType<typeof getAreaWithDetails>>>(null)
 const notFound = ref(false)
 const openSectors = ref<string[]>([])
@@ -272,6 +275,17 @@ const selectSector = async (id: string) => {
     document.getElementById(`sector-${id}`)?.closest('button')?.scrollIntoView()
 }
 
+// ?sector= z hľadania sektor otvorí a z URL zmizne, aby ten istý odkaz fungoval aj nabudúce
+const openSectorFromQuery = async () => {
+    const {sector, ...query} = route.query
+    if (typeof sector !== 'string') return
+
+    await navigateTo({query}, {replace: true})
+    selectSector(sector)
+}
+
+watch(() => route.query.sector, openSectorFromQuery)
+
 const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat, lon, name}) =>
     lat && lon ? [{id, lat, lon, label: name}] : []))
 
@@ -285,6 +299,8 @@ onMounted(async () => {
 
     // Oblasť s jediným sektorom rovno rozbalíme
     if (sectors.value.length === 1) openSectors.value = [sectors.value[0]!.id]
+
+    openSectorFromQuery()
 })
 
 onBeforeUnmount(() => {
