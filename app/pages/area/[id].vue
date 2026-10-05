@@ -213,7 +213,8 @@ const sectors = computed(() => (area.value?.sectors ?? [])
                 ...boulder,
                 // Poradie ako v tope (číslo na fotke); varianty bez čísla idú na koniec podľa obtiažnosti
                 climbs: boulder.climbs.toSorted((a, b) =>
-                    (a.topo_number ?? Infinity) - (b.topo_number ?? Infinity)
+                    Number(a.topo_number === null) - Number(b.topo_number === null)
+                    || collator.compare(a.topo_number ?? '', b.topo_number ?? '')
                     || (a.grade?.value ?? Infinity) - (b.grade?.value ?? Infinity)
                     || collator.compare(a.name, b.name)),
             }))

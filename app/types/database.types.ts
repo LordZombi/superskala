@@ -92,7 +92,7 @@ export type Database = {
           start_x: number | null
           start_y: number | null
           top_x: number | null
-          topo_number: number | null
+          topo_number: string | null
           top_y: number | null
           topo_path: string | null
           video_url: string | null
@@ -112,7 +112,7 @@ export type Database = {
           start_x?: number | null
           start_y?: number | null
           top_x?: number | null
-          topo_number?: number | null
+          topo_number?: string | null
           top_y?: number | null
           topo_path?: string | null
           video_url?: string | null
@@ -132,7 +132,7 @@ export type Database = {
           start_x?: number | null
           start_y?: number | null
           top_x?: number | null
-          topo_number?: number | null
+          topo_number?: string | null
           top_y?: number | null
           topo_path?: string | null
           video_url?: string | null

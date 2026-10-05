@@ -290,6 +290,8 @@ const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
 const isFullscreen = ref(false)
+// Čísla z topa sú text (3a, 3+3a), numeric zoradí 2 pred 10
+const collator = new Intl.Collator('sk', {numeric: true})
 // Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
 const isDev = import.meta.dev
 
@@ -320,7 +322,9 @@ watch(selectedClimbId, async (id) => {
             .order('name')
 
         // Poradie ako v tope (číslo na fotke), cesty bez čísla na koniec
-        otherClimbs.value = (list || []).sort((a, b) => (a.topo_number ?? Infinity) - (b.topo_number ?? Infinity))
+        otherClimbs.value = (list || []).sort((a, b) =>
+            Number(a.topo_number === null) - Number(b.topo_number === null)
+            || collator.compare(a.topo_number ?? '', b.topo_number ?? ''))
     }
 }, {immediate: true})
 </script>
