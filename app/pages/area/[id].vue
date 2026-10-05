@@ -157,7 +157,10 @@
             </section>
         </div>
 
-        <ClimbDetailSheet/>
+        <ClimbDetailSheet
+            :prev-id="siblingClimbId(-1)"
+            :next-id="siblingClimbId(1)"
+        />
     </div>
 </template>
 
@@ -229,6 +232,16 @@ const sectors = computed(() => (area.value?.sectors ?? [])
     .sort((a, b) => collator.compare(a.name, b.name)))
 
 const climbCount = computed(() => sectors.value.reduce((sum, sector) => sum + sector.climbCount, 0))
+
+// Kamene v poradí zoznamu naprieč sektormi – na listovanie v detaile cesty
+const boulders = computed(() => sectors.value.flatMap(sector =>
+    sector.boulders.filter(boulder => boulder.climbs.length)))
+
+const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
+    boulder.climbs.some(climb => climb.id === selectedClimbId.value)))
+
+const siblingClimbId = (offset: number) =>
+    boulderIndex.value < 0 ? null : boulders.value[boulderIndex.value + offset]?.climbs[0]?.id ?? null
 
 const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat, lon, name}) =>
     lat && lon ? [{id, lat, lon, label: name}] : []))

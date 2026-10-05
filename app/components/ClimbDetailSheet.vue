@@ -33,6 +33,21 @@
                 />
             </div>
 
+            <!-- Celý okraj fotky listuje medzi kameňmi; z-5 ho drží pod tlačidlami v rohoch (z-10) -->
+            <button
+                v-for="nav in navs"
+                :key="nav.label"
+                type="button"
+                :class="['group absolute inset-y-0 z-5 flex w-1/5 min-w-24 items-center', nav.class, navPadding]"
+                :aria-label="nav.label"
+                @click="go(nav.id)"
+            >
+                <UIcon
+                    :name="nav.icon"
+                    class="size-8 rounded-full bg-white/80 p-1.5 text-neutral-900 group-hover:bg-white"
+                />
+            </button>
+
             <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
                 <UButton
                     icon="i-heroicons-x-mark"
@@ -227,10 +242,36 @@ import {useSupabase} from '~/composables/useSupabase'
 import SDivider from "~/components/super/SDivider.vue";
 import TopoImage from "~/components/TopoImage.vue";
 
+// Prvá cesta susedného kameňa – poradie pozná len stránka, ktorá detail otvára
+const {prevId, nextId} = defineProps<{
+    prevId?: string | null
+    nextId?: string | null
+}>()
+
 const selectedClimbId = useState<string | null>('selectedClimbId')
 const {supabase} = useSupabase()
 
-const {isMinimized} = useSheetSwipe(useTemplateRef('sheet'), useTemplateRef('scroller'))
+const go = (id?: string | null) => {
+    if (id) selectedClimbId.value = id
+}
+
+const {isMinimized} = useSheetSwipe(useTemplateRef('sheet'), useTemplateRef('scroller'), {
+    onLeft: () => go(nextId),
+    onRight: () => go(prevId),
+})
+
+const navs = computed(() => [
+    {id: prevId, label: 'Predchádzajúci kameň', icon: 'i-heroicons-chevron-left', class: 'left-0 justify-start'},
+    {id: nextId, label: 'Nasledujúci kameň', icon: 'i-heroicons-chevron-right', class: 'right-0 justify-end'},
+].filter(nav => nav.id))
+
+// Bez fotky (a v zmenšenom paneli) je lišta nízka, šípky preto uhnú dovnútra spod rohových tlačidiel
+const navPadding = computed(() => {
+    if (!climb.value?.boulder?.image_url) return 'px-16'
+
+    return isMinimized.value ? 'px-4 max-lg:px-16' : 'px-4'
+})
+
 // Zmenšený panel (len mobil) ukazuje iba názov; skrytý obsah tak nie je ani fokusovateľný
 const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
 const climb = ref<any>(null)
