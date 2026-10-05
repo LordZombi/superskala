@@ -42,10 +42,13 @@
                 :aria-label="nav.label"
                 @click="go(nav.id)"
             >
-                <UIcon
-                    :name="nav.icon"
-                    class="size-8 rounded-full bg-white/80 p-1.5 text-neutral-900 group-hover:bg-white"
-                />
+                <!-- Pozadie musí byť na obale: ikona sa kreslí maskou cez vlastné pozadie -->
+                <span class="flex size-8 items-center justify-center rounded-full bg-white/80 text-neutral-900 group-hover:bg-white">
+                    <UIcon
+                        :name="nav.icon"
+                        class="size-5"
+                    />
+                </span>
             </button>
 
             <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
@@ -275,7 +278,8 @@ const go = (id?: string | null) => {
     if (id) selectedClimbId.value = id
 }
 
-const {isMinimized} = useSheetSwipe(useTemplateRef('sheet'), useTemplateRef('scroller'), {
+const scroller = useTemplateRef('scroller')
+const {isMinimized} = useSheetSwipe(useTemplateRef('sheet'), scroller, {
     onLeft: () => go(nextId),
     onRight: () => go(prevId),
 })
@@ -304,6 +308,8 @@ const isDev = import.meta.dev
 
 watch(selectedClimbId, async (id) => {
     isMinimized.value = false
+    // Nová cesta začína od názvu, nie tam, kde bola odscrollovaná predošlá
+    scroller.value?.scrollTo({top: 0})
 
     if (!id) {
         climb.value = null

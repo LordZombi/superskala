@@ -45,13 +45,13 @@ import SDivider from "~/components/super/SDivider.vue";
                 <ULink
                     to="https://boulder.sk/"
                     target="_blank"
-                    class="inline-block"
+                    class="mx-auto block w-fit border-12 border-black"
                 >
-                    <!-- brightness-0 prefarbí logo načierno bez úpravy súboru -->
+                    <!-- brightness-0 prefarbí logo načierno bez úpravy súboru; rámik splýva s jeho čiernym okrajom -->
                     <img
-                        src="/boulder-sk.svg"
+                        src="https://boulder.sk/wp-content/themes/b2/logo.svg"
                         alt="boulder.sk (otvorí sa v novej karte)"
-                        class="h-10 brightness-0"
+                        class="w-80 brightness-0"
                     />
                 </ULink>
             </section>
