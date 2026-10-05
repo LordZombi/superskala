@@ -3,6 +3,7 @@
         <div class="absolute inset-0 flex flex-col lg:flex-row">
             <MapView
                 class="z-0 h-[35vh] shrink-0 lg:h-auto lg:flex-1"
+                :class="{'max-lg:flex-1': isMinimized || selectedClimbId}"
                 :points="sectorPoints"
                 permanent-labels
                 fit-to-points
@@ -10,9 +11,22 @@
             />
 
             <section
-                class="flex-1 min-h-0 overflow-y-auto bg-white p-4 space-y-4 lg:flex-none lg:w-[30vw] lg:min-w-120"
+                ref="panel"
+                class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white p-4 space-y-4 lg:flex-none lg:w-[30vw] lg:min-w-120"
+                :class="{'max-lg:flex-none': isMinimized, 'max-lg:hidden': selectedClimbId}"
                 aria-labelledby="area-title"
             >
+                <!-- Úchyt je zároveň tlačidlo, aby sa panel dal zmenšiť aj bez gesta -->
+                <button
+                    type="button"
+                    class="-mt-3 mb-1 flex w-full justify-center py-2.5 lg:hidden"
+                    aria-label="Panel oblasti"
+                    :aria-expanded="!isMinimized"
+                    @click="isMinimized = !isMinimized"
+                >
+                    <span class="h-1.5 w-10 rounded-full bg-neutral-500"></span>
+                </button>
+
                 <template v-if="area">
                     <div class="space-y-1">
                         <div class="flex justify-between items-start gap-2">
@@ -36,16 +50,17 @@
                         </p>
                         <p
                             v-if="area.description"
-                            class="text-slate-600 text-sm leading-relaxed"
+                            :class="['text-slate-600 text-sm leading-relaxed', minimizedHidden]"
                         >
                             {{ area.description }}
                         </p>
                     </div>
 
-                    <SDivider/>
+                    <SDivider :class="minimizedHidden"/>
 
                     <UAccordion
                         v-model="openSectors"
+                        :class="minimizedHidden"
                         type="multiple"
                         :items="sectors"
                     >
@@ -150,10 +165,11 @@
     setup
     lang="ts"
 >
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from 'vue'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapPoint} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
+import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 
 definePageMeta({
@@ -169,6 +185,12 @@ const selectedClimbId = useState<string | null>('selectedClimbId')
 const area = ref<Awaited<ReturnType<typeof getAreaWithDetails>>>(null)
 const notFound = ref(false)
 const openSectors = ref<string[]>([])
+
+// Panel je zároveň scroller, preto ten istý element dvakrát
+const panel = useTemplateRef('panel')
+const {isMinimized} = useSheetSwipe(panel, panel)
+// Zmenšený panel (len mobil) ukazuje iba názov oblasti; skrytý obsah tak nie je ani fokusovateľný
+const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
 
 const collator = new Intl.Collator('sk', {numeric: true})
 const pluralRules = new Intl.PluralRules('sk')

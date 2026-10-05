@@ -1,14 +1,27 @@
 <template>
     <div
         v-if="selectedClimbId"
+        ref="sheet"
         :class="[
           'fixed transition-transform duration-300 ease-in-out z-20 flex flex-col overflow-hidden',
           'bg-white shadow-2xl',
-          'right-0 bottom-0 left-0 w-full h-[70vh] rounded-t-3xl',
+          'right-0 bottom-0 left-0 w-full rounded-t-3xl',
+          isMinimized ? 'h-auto' : 'h-[70vh]',
           'lg:top-12 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[30vw] lg:min-w-120 lg:h-auto lg:rounded-none',
         ]"
     >
-        <div :class="['relative', {'min-h-16': !climb?.boulder?.image_url}]">
+        <!-- Úchyt je zároveň tlačidlo, aby sa panel dal zmenšiť aj bez gesta -->
+        <button
+            type="button"
+            class="flex justify-center py-2.5 lg:hidden"
+            aria-label="Detail cesty"
+            :aria-expanded="!isMinimized"
+            @click="isMinimized = !isMinimized"
+        >
+            <span class="h-1.5 w-10 rounded-full bg-neutral-500"></span>
+        </button>
+
+        <div :class="['relative', {'min-h-16': !climb?.boulder?.image_url, 'max-lg:min-h-16': isMinimized}]">
             <div class="absolute top-4 left-4 z-10">
                 <UButton
                     icon="i-heroicons-arrow-left"
@@ -34,7 +47,7 @@
                     icon="i-heroicons-arrows-pointing-out"
                     color="neutral"
                     variant="soft"
-                    class="rounded-full"
+                    :class="['rounded-full', minimizedHidden]"
                     aria-label="Zobraziť celú fotku"
                     @click="isFullscreen = true"
                 />
@@ -42,6 +55,7 @@
 
             <TopoImage
                 v-if="climb?.boulder?.image_url"
+                :class="minimizedHidden"
                 :image-url="climb.boulder.image_url"
                 :alt="`Fotka kameňa ${climb.boulder.name}`"
                 :climbs="otherClimbs"
@@ -71,7 +85,10 @@
             </template>
         </UModal>
 
-        <div class="p-4 overflow-y-auto flex-1 space-y-6">
+        <div
+            ref="scroller"
+            class="p-4 overflow-y-auto overscroll-contain flex-1 space-y-6"
+        >
             <div v-if="climb">
                 <div class="space-y-1">
                     <div class="flex justify-between items-start gap-2">
@@ -103,7 +120,7 @@
                         </template>
                         {{ climb.boulder?.sector?.name }} • {{ climb.boulder?.name }}
                     </p>
-                    <div class="flex items-center gap-2">
+                    <div :class="['flex items-center gap-2', minimizedHidden]">
                         <div
                             v-if="climb.is_sit_start"
                             class="flex"
@@ -154,15 +171,15 @@
                     </div>
                     <p
                         v-if="climb.description"
-                        class="text-slate-600 text-sm leading-relaxed"
+                        :class="['text-slate-600 text-sm leading-relaxed', minimizedHidden]"
                     >
                         {{ climb.description }}
                     </p>
                 </div>
 
-                <SDivider class="my-3"/>
+                <SDivider :class="['my-3', minimizedHidden]"/>
 
-                <div class="space-y-3">
+                <div :class="['space-y-3', minimizedHidden]">
                     <h3 class="text-xs font-black uppercase text-slate-400">
                         Ostatné cesty na
                         bouldri</h3>
@@ -204,13 +221,18 @@
     setup
     lang="ts"
 >
-import {ref, watch} from 'vue'
+import {computed, ref, useTemplateRef, watch} from 'vue'
+import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 import SDivider from "~/components/super/SDivider.vue";
 import TopoImage from "~/components/TopoImage.vue";
 
 const selectedClimbId = useState<string | null>('selectedClimbId')
 const {supabase} = useSupabase()
+
+const {isMinimized} = useSheetSwipe(useTemplateRef('sheet'), useTemplateRef('scroller'))
+// Zmenšený panel (len mobil) ukazuje iba názov; skrytý obsah tak nie je ani fokusovateľný
+const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
 const isFullscreen = ref(false)
@@ -218,6 +240,8 @@ const isFullscreen = ref(false)
 const isDev = import.meta.dev
 
 watch(selectedClimbId, async (id) => {
+    isMinimized.value = false
+
     if (!id) {
         climb.value = null
         otherClimbs.value = []

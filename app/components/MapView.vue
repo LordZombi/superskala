@@ -27,6 +27,7 @@
 import {onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
+import {useResizeObserver} from '@vueuse/core'
 
 export interface MapPoint {
     id: string
@@ -163,6 +164,10 @@ onMounted(() => {
 })
 
 watch(() => points, renderPoints)
+
+// Mapa mení veľkosť pri zmenšení panela oblasti, Leaflet si to sám nevšimne.
+// Bez posunu, aby výrez ostal ukotvený hore a neskryl sa za spodný panel
+useResizeObserver(mapElement, () => map?.invalidateSize({pan: false}))
 
 onBeforeUnmount(() => map?.stopLocate().remove())
 </script>
