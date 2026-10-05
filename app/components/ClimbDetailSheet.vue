@@ -133,7 +133,16 @@
                             </ULink>
                             •
                         </template>
-                        {{ climb.boulder?.sector?.name }} • {{ climb.boulder?.name }}
+                        <template v-if="climb.boulder?.sector">
+                            <ULink
+                                class="underline uppercase"
+                                @click="emit('selectSector', climb.boulder.sector_id)"
+                            >
+                                {{ climb.boulder.sector.name }}
+                            </ULink>
+                            •
+                        </template>
+                        {{ climb.boulder?.name }}
                     </p>
                     <div :class="['flex items-center gap-2', minimizedHidden]">
                         <div
@@ -246,6 +255,10 @@ import TopoImage from "~/components/TopoImage.vue";
 const {prevId, nextId} = defineProps<{
     prevId?: string | null
     nextId?: string | null
+}>()
+
+const emit = defineEmits<{
+    selectSector: [id: string]
 }>()
 
 const selectedClimbId = useState<string | null>('selectedClimbId')

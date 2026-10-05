@@ -7,7 +7,7 @@
                 :points="sectorPoints"
                 permanent-labels
                 fit-to-points
-                @select="id => openSectors = [id]"
+                @select="selectSector"
             />
 
             <section
@@ -65,7 +65,10 @@
                         :items="sectors"
                     >
                         <template #default="{ item }">
-                            <span class="block font-bold">{{ item.label }}</span>
+                            <span
+                                :id="`sector-${item.id}`"
+                                class="block font-bold"
+                            >{{ item.label }}</span>
                             <span class="block text-xs font-normal text-slate-600">
                                 {{ plural(item.climbCount, ['cesta', 'cesty', 'ciest']) }}
                                 <template v-if="item.gradeRange"> • {{ item.gradeRange }}</template>
@@ -160,6 +163,7 @@
         <ClimbDetailSheet
             :prev-id="siblingClimbId(-1)"
             :next-id="siblingClimbId(1)"
+            @select-sector="selectSector"
         />
     </div>
 </template>
@@ -242,6 +246,17 @@ const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
 
 const siblingClimbId = (offset: number) =>
     boulderIndex.value < 0 ? null : boulders.value[boulderIndex.value + offset]?.climbs[0]?.id ?? null
+
+const selectSector = async (id: string) => {
+    openSectors.value = [id]
+    isMinimized.value = false
+    // Detail cesty prekrýva zoznam sektorov, bez zavretia by výber nebolo vidno
+    selectedClimbId.value = null
+
+    // Až po zbalení ostatných sektorov (animácia akordeónu trvá 200 ms), inak hlavička po posune ujde z obrazovky
+    await new Promise(resolve => setTimeout(resolve, 250))
+    document.getElementById(`sector-${id}`)?.closest('button')?.scrollIntoView()
+}
 
 const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat, lon, name}) =>
     lat && lon ? [{id, lat, lon, label: name}] : []))
