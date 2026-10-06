@@ -144,9 +144,11 @@ export default defineNuxtConfig({
                 },
                 {
                     urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/,
-                    handler: 'StaleWhileRevalidate',
+                    // Online vždy čerstvé dáta (nové oblasti a cesty hneď), cache len bez siete alebo pri slabom signáli
+                    handler: 'NetworkFirst',
                     options: {
                         cacheName: 'supabase-data',
+                        networkTimeoutSeconds: 3,
                         // Online sa dáta aj tak obnovia na pozadí; offline je lepšia stará verzia ako žiadna
                         expiration: {
                             maxEntries: 500,

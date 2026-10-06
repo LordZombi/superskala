@@ -14,7 +14,7 @@
 
             <div class="flex items-center gap-2">
                 <UButton
-                    ref="searchButton"
+                    id="search-toggle"
                     icon="i-heroicons-magnifying-glass"
                     aria-label="Hľadať"
                     :aria-expanded="isSearchOpen"
@@ -66,18 +66,18 @@
     setup
     lang="ts"
 >
-import {nextTick, ref, useTemplateRef, watch} from 'vue'
+import {nextTick, ref, watch} from 'vue'
 import SSearch from '~/components/super/SSearch.vue'
 
 const route = useRoute()
 const isSearchOpen = ref(false)
-const searchButton = useTemplateRef('searchButton')
 
 const closeSearch = async () => {
     isSearchOpen.value = false
     // Fokus sa vráti na tlačidlo, inak by po zavretí ostal stratený
     await nextTick()
-    searchButton.value?.$el.focus()
+    // Cez id: koreň UButton nie je samotný <button>, $el.focus() preto padal
+    document.getElementById('search-toggle')?.focus()
 }
 
 watch(() => route.fullPath, () => isSearchOpen.value = false)

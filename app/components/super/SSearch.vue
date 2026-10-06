@@ -122,7 +122,7 @@ const emit = defineEmits<{
 const MAX_RESULTS = 20
 
 const {getSearchIndex} = useSupabase()
-// Index prežije zatvorenie hľadania, načíta sa len raz
+// Index prežije zatvorenie hľadania, takže výsledky sú hneď; pri každom otvorení sa na pozadí obnoví
 const index = useState<SearchItem[] | null>('searchIndex', () => null)
 const history = useLocalStorage('superskala-search', {queries: [] as string[], visited: [] as SearchItem[]})
 
@@ -162,6 +162,8 @@ const visit = (item: SearchItem) => {
 }
 
 onMounted(async () => {
-    index.value ??= await getSearchIndex()
+    const fresh = await getSearchIndex()
+    // Prázdna odpoveď je výpadok siete, nie zmazaná databáza – starý index si necháme
+    if (fresh.length || !index.value) index.value = fresh
 })
 </script>
