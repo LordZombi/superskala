@@ -26,6 +26,17 @@
                                 v-text="area.name"
                             ></h1>
                             <div class="flex shrink-0 gap-2">
+                                <UButton
+                                    :icon="offlineIcon"
+                                    :label="isSaving ? `${Math.round(progress! * 100)} %` : undefined"
+                                    :loading="isSaving"
+                                    color="neutral"
+                                    variant="soft"
+                                    class="rounded-full shrink-0 w-auto"
+                                    :aria-label="offlineLabel"
+                                    :title="offlineLabel"
+                                    @click="saveOffline"
+                                />
                                 <SShareButton
                                     :title="area.name"
                                     :path="route.path"
@@ -138,7 +149,7 @@
                     v-else-if="notFound"
                     class="text-slate-600"
                 >
-                    Oblasť sa nenašla.
+                    {{ isOffline ? 'Si offline a táto oblasť nie je uložená v telefóne.' : 'Oblasť sa nenašla.' }}
                     <ULink to="/">Späť na mapu</ULink>
                 </p>
 
@@ -157,6 +168,10 @@
         </div>
 
         <ClimbDetailSheet
+            :climbs="selectedBoulder?.climbs"
+            :boulder="selectedBoulder"
+            :sector="selectedSector"
+            :area="area"
             :prev-id="siblingClimbId(-1)"
             :next-id="siblingClimbId(1)"
             @select-sector="selectSector"
@@ -169,11 +184,12 @@
     lang="ts"
 >
 import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
-import {useMediaQuery, useWindowSize} from '@vueuse/core'
+import {useMediaQuery, useOnline, useWindowSize} from '@vueuse/core'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
+import {useOfflineArea} from '~/composables/useOfflineArea'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 
@@ -245,15 +261,49 @@ const sectors = computed(() => (area.value?.sectors ?? [])
 
 const climbCount = computed(() => sectors.value.reduce((sum, sector) => sum + sector.climbCount, 0))
 
-// Kamene v poradí zoznamu naprieč sektormi – na listovanie v detaile cesty
+// Kamene v poradí zoznamu naprieč sektormi
 const boulders = computed(() => sectors.value.flatMap(sector =>
     sector.boulders.filter(boulder => boulder.climbs.length)))
 
 const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
     boulder.climbs.some(climb => climb.id === selectedClimbId.value)))
 
-const siblingClimbId = (offset: number) =>
-    boulderIndex.value < 0 ? null : boulders.value[boulderIndex.value + offset]?.climbs[0]?.id ?? null
+// Detail cesty berie dáta z tohto stromu, nie zo siete – vďaka tomu funguje aj bez signálu
+const selectedBoulder = computed(() => boulders.value[boulderIndex.value] ?? null)
+const selectedSector = computed(() => sectors.value.find(({boulders}) =>
+    selectedBoulder.value && boulders.includes(selectedBoulder.value)) ?? null)
+
+const online = useOnline()
+const isOffline = computed(() => !online.value)
+const toast = useToast()
+const {failed, isSaving, progress, refresh: refreshOffline, save, savedAt} = useOfflineArea(area)
+
+const offlineIcon = computed(() => savedAt.value ? 'i-heroicons-check-circle' : 'i-heroicons-arrow-down-tray')
+const offlineLabel = computed(() => savedAt.value
+    ? `Uložené offline ${new Date(savedAt.value).toLocaleDateString('sk')} – kliknutím aktualizuješ`
+    : 'Uložiť oblasť offline (fotky aj mapu)')
+
+const saveOffline = async () => {
+    if (isOffline.value) {
+        toast.add({title: 'Si offline', description: 'Oblasť sa dá uložiť, len keď máš signál.', color: 'warning'})
+        return
+    }
+
+    await save()
+
+    toast.add(failed.value
+        ? {title: 'Oblasť sa neuložila celá', description: `${failed.value} súborov sa nepodarilo stiahnuť, skús to znova.`, color: 'error'}
+        : {title: 'Oblasť je uložená offline', description: 'Cesty, fotky aj mapa budú dostupné bez signálu.', color: 'success'})
+}
+
+// Listovanie v detaile ide cestu po ceste; po poslednej na kameni pokračuje ďalším kameňom
+const climbIds = computed(() => boulders.value.flatMap(boulder => boulder.climbs.map(({id}) => id)))
+
+const siblingClimbId = (offset: number) => {
+    const index = climbIds.value.indexOf(selectedClimbId.value ?? '')
+
+    return index < 0 ? null : climbIds.value[index + offset] ?? null
+}
 
 // Sektor vybraný z mapy, detailu alebo hľadania; výber cesty ho zruší, aby sa po jej zavretí mapa vrátila na oblasť
 const focusedSectorId = ref<string | null>(null)
@@ -316,6 +366,7 @@ useHead({
 onMounted(async () => {
     area.value = await getAreaWithDetails(String(route.params.id))
     notFound.value = !area.value
+    refreshOffline()
 
     // Oblasť s jediným sektorom rovno rozbalíme
     if (sectors.value.length === 1) openSectors.value = [sectors.value[0]!.id]

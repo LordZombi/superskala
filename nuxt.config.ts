@@ -40,6 +40,23 @@ export default defineNuxtConfig({
         redirect: false,
     },
 
+    // Ikony idú do bundlu, inak ich @nuxt/icon ťahá z Iconify API a bez signálu ostanú prázdne
+    icon: {
+        clientBundle: {
+            scan: true,
+            // Ikony, ktoré si Nuxt UI pýta samo (akordeón, toasty, načítavanie)
+            icons: [
+                'lucide:chevron-down',
+                'lucide:circle-alert',
+                'lucide:circle-check',
+                'lucide:circle-x',
+                'lucide:info',
+                'lucide:loader-circle',
+                'lucide:x',
+            ],
+        },
+    },
+
     runtimeConfig: {
         public: {
             mapyApiKey: '', // NUXT_PUBLIC_MAPY_API_KEY
@@ -100,9 +117,13 @@ export default defineNuxtConfig({
                     handler: 'CacheFirst',
                     options: {
                         cacheName: 'map-tiles',
+                        // Uložená oblasť má okolo 500 dlaždíc, staršie sa nesmú vytlačiť hneď ďalšou
                         expiration: {
-                            maxEntries: 500,
-                            maxAgeSeconds: 60 * 60 * 24 * 30
+                            maxEntries: 10000,
+                            maxAgeSeconds: 60 * 60 * 24 * 365
+                        },
+                        cacheableResponse: {
+                            statuses: [200]
                         }
                     }
                 },
@@ -111,9 +132,10 @@ export default defineNuxtConfig({
                     handler: 'CacheFirst',
                     options: {
                         cacheName: 'boulder-images',
+                        // Fotky uložených oblastí musia vydržať aj sezónu bez návštevy
                         expiration: {
-                            maxEntries: 100,
-                            maxAgeSeconds: 60 * 60 * 24 * 30
+                            maxEntries: 2000,
+                            maxAgeSeconds: 60 * 60 * 24 * 365
                         },
                         cacheableResponse: {
                             statuses: [0, 200]
@@ -125,9 +147,10 @@ export default defineNuxtConfig({
                     handler: 'StaleWhileRevalidate',
                     options: {
                         cacheName: 'supabase-data',
+                        // Online sa dáta aj tak obnovia na pozadí; offline je lepšia stará verzia ako žiadna
                         expiration: {
-                            maxEntries: 100,
-                            maxAgeSeconds: 60 * 60 * 24 * 7
+                            maxEntries: 500,
+                            maxAgeSeconds: 60 * 60 * 24 * 365
                         },
                         cacheableResponse: {
                             statuses: [0, 200]

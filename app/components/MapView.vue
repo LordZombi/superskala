@@ -28,6 +28,7 @@ import {onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import {usePreferredReducedMotion, useResizeObserver} from '@vueuse/core'
+import {mapTileUrl} from '~/composables/useOfflineArea'
 
 export interface MapFocus {
     lat: number
@@ -182,8 +183,10 @@ onMounted(() => {
         zoomControl: false,
     }).setView([48.611123, 17.576012], 6)
 
-    L.tileLayer(`https://api.mapy.cz/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=${config.public.mapyApiKey}`, {
+    L.tileLayer(mapTileUrl(config.public.mapyApiKey), {
         attribution: '&copy; Seznam.cz a.s.',
+        // CORS odpoveď (200) service worker uloží; nepriehľadnú (no-cors) by do cache nedal
+        crossOrigin: true,
     }).addTo(map)
 
     markers.addTo(map)
