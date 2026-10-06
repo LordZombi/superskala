@@ -147,9 +147,9 @@ import SDivider from "~/components/super/SDivider.vue";
                     >
                         Napíš nám na
                         <ULink
-                            to="mailto:info@superskala.sk"
+                            to="mailto:skaly@superdeveloper.sk"
                             class="underline"
-                        >info@superskala.sk</ULink>
+                        >skaly@superdeveloper.sk</ULink>
                     </p>
                 </div>
                 <div
