@@ -27,7 +27,13 @@
 import {onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import {useResizeObserver} from '@vueuse/core'
+import {usePreferredReducedMotion, useResizeObserver} from '@vueuse/core'
+
+export interface MapFocus {
+    lat: number
+    lon: number
+    zoom: number
+}
 
 export interface MapPoint {
     id: string
@@ -36,10 +42,14 @@ export interface MapPoint {
     label: string
 }
 
-const {points, permanentLabels = false, fitToPoints = false} = defineProps<{
+const {points, permanentLabels = false, fitToPoints = false, focus = null, focusInset = 0} = defineProps<{
     points: MapPoint[]
     permanentLabels?: boolean
     fitToPoints?: boolean
+    /** Miesto, na ktoré sa mapa priblíži; bez neho sa vráti na všetky body */
+    focus?: MapFocus | null
+    /** Koľko px mapy zospodu prekrýva panel – focus sa centruje do zvyšku */
+    focusInset?: number
 }>()
 
 const emit = defineEmits<{
@@ -135,13 +145,33 @@ const renderPoints = () => {
         })
     })
 
-    if (fitToPoints && points.length) {
-        map.fitBounds(L.latLngBounds(points.map(point => [point.lat, point.lon])), {
-            padding: [48, 48],
-            maxZoom: 16,
-        })
-    }
+    fitPoints()
 }
+
+const fitPoints = () => {
+    if (!map || !fitToPoints || !points.length) return
+
+    map.fitBounds(L.latLngBounds(points.map(point => [point.lat, point.lon])), {
+        padding: [48, 48],
+        maxZoom: 16,
+    })
+}
+
+const reducedMotion = usePreferredReducedMotion()
+
+// 'post': výber cesty zároveň mení veľkosť mapy, rátať treba až s novou
+watch(() => focus, () => {
+    if (!map) return
+
+    map.invalidateSize({pan: false})
+    if (!focus) return fitPoints()
+
+    map.flyToBounds(L.latLng(focus.lat, focus.lon).toBounds(1), {
+        paddingBottomRight: [0, focusInset],
+        maxZoom: focus.zoom,
+        animate: reducedMotion.value !== 'reduce',
+    })
+}, {flush: 'post'})
 
 onMounted(() => {
     if (!mapElement.value) return

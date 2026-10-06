@@ -2,9 +2,10 @@
     <div class="relative h-full">
         <div class="absolute inset-0 flex flex-col lg:flex-row">
             <MapView
-                class="z-0 h-[35vh] shrink-0 lg:h-auto lg:flex-1"
-                :class="{'max-lg:flex-1': isMinimized || selectedClimbId}"
+                class="z-0 min-h-0 flex-1"
                 :points="sectorPoints"
+                :focus="mapFocus"
+                :focus-inset="isMobile && selectedClimbId ? windowHeight * 0.7 : 0"
                 permanent-labels
                 fit-to-points
                 @select="selectSector"
@@ -12,21 +13,10 @@
 
             <section
                 ref="panel"
-                class="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-white p-4 space-y-4 lg:flex-none lg:w-[30vw] lg:min-w-120"
-                :class="{'max-lg:flex-none': isMinimized, 'max-lg:hidden': selectedClimbId}"
+                class="min-h-0 overflow-y-auto overscroll-contain bg-white p-4 space-y-4 transition-[height] duration-300 ease-out lg:flex-none lg:w-[30vw] lg:min-w-120"
+                :class="[isMinimized ? 'max-lg:h-20 max-lg:overflow-hidden' : 'max-lg:h-[65%]', {'max-lg:hidden': selectedClimbId}]"
                 aria-labelledby="area-title"
             >
-                <!-- Úchyt je zároveň tlačidlo, aby sa panel dal zmenšiť aj bez gesta -->
-                <button
-                    type="button"
-                    class="-mt-3 mb-1 flex w-full justify-center py-2.5 lg:hidden"
-                    aria-label="Panel oblasti"
-                    :aria-expanded="!isMinimized"
-                    @click="isMinimized = !isMinimized"
-                >
-                    <span class="h-1.5 w-10 rounded-full bg-neutral-500"></span>
-                </button>
-
                 <template v-if="area">
                     <div class="space-y-1">
                         <div class="flex justify-between items-start gap-2">
@@ -179,8 +169,9 @@
     lang="ts"
 >
 import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
+import {useMediaQuery, useWindowSize} from '@vueuse/core'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
-import MapView, {type MapPoint} from '~/components/MapView.vue'
+import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
@@ -212,8 +203,8 @@ const openSectors = ref<string[]>([])
 // Panel je zároveň scroller, preto ten istý element dvakrát
 const panel = useTemplateRef('panel')
 const {isMinimized} = useSheetSwipe(panel, panel)
-// Zmenšený panel (len mobil) ukazuje iba názov oblasti; skrytý obsah tak nie je ani fokusovateľný
-const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
+// Zmenšený panel (len mobil) ukazuje iba názov oblasti; invisible obsah vyradí z fokusu a výšku nechá panelu na animáciu
+const minimizedHidden = computed(() => ({'max-lg:invisible': isMinimized.value}))
 
 const collator = new Intl.Collator('sk', {numeric: true})
 const pluralRules = new Intl.PluralRules('sk')
@@ -264,11 +255,34 @@ const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
 const siblingClimbId = (offset: number) =>
     boulderIndex.value < 0 ? null : boulders.value[boulderIndex.value + offset]?.climbs[0]?.id ?? null
 
+// Sektor vybraný z mapy, detailu alebo hľadania; výber cesty ho zruší, aby sa po jej zavretí mapa vrátila na oblasť
+const focusedSectorId = ref<string | null>(null)
+
+watch(selectedClimbId, (climb) => {
+    if (climb) focusedSectorId.value = null
+})
+
+// Vybraný kameň sa na mape priblíži; kým nemá vlastné súradnice, poslúži jeho sektor
+const mapFocus = computed<MapFocus | null>(() => {
+    const boulder = boulders.value[boulderIndex.value]
+    if (boulder?.lat && boulder.lon) return {lat: boulder.lat, lon: boulder.lon, zoom: 18}
+
+    const sector = sectors.value.find(({id, boulders}) =>
+        boulder ? boulders.includes(boulder) : id === focusedSectorId.value)
+
+    return sector?.lat && sector.lon ? {lat: sector.lat, lon: sector.lon, zoom: 17} : null
+})
+
+// Na mobile (pod lg) detail cesty prekrýva spodných 70vh mapy, viď h-[70vh] v ClimbDetailSheet
+const isMobile = useMediaQuery('(max-width: 1023px)')
+const {height: windowHeight} = useWindowSize()
+
 const selectSector = async (id: string) => {
     openSectors.value = [id]
     isMinimized.value = false
     // Detail cesty prekrýva zoznam sektorov, bez zavretia by výber nebolo vidno
     selectedClimbId.value = null
+    focusedSectorId.value = id
 
     // Až po zbalení ostatných sektorov (animácia akordeónu trvá 200 ms), inak hlavička po posune ujde z obrazovky
     await new Promise(resolve => setTimeout(resolve, 250))
@@ -289,8 +303,14 @@ watch(() => route.query.sector, openSectorFromQuery)
 const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat, lon, name}) =>
     lat && lon ? [{id, lat, lon, label: name}] : []))
 
+// Rovnaký formát posiela aj server pre náhľady odkazov (server/plugins/share-meta.ts)
 useHead({
-    title: () => area.value ? `${area.value.name} – Superskaly` : 'Superskaly',
+    title: () => {
+        const climb = boulders.value[boulderIndex.value]?.climbs.find(({id}) => id === selectedClimbId.value)
+
+        return ['Superskaly', area.value?.name, climb && [climb.topo_number && `${climb.topo_number}.`, climb.name]
+            .filter(Boolean).join(' ')].filter(Boolean).join(' | ')
+    },
 })
 
 onMounted(async () => {

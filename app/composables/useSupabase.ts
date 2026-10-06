@@ -128,7 +128,7 @@ export function useSupabase() {
 
         const {data, error: err} = await client
             .from('areas')
-            .select('*, sectors(*, boulders(id, name, image_url, climbs(*, grade:grades(font, value))))')
+            .select('*, sectors(*, boulders(id, name, image_url, lat, lon, climbs(*, grade:grades(font, value))))')
             .eq('id', areaId)
             .maybeSingle();
 

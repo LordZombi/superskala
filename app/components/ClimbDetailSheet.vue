@@ -5,22 +5,11 @@
         :class="[
           'fixed transition-transform duration-300 ease-in-out z-20 flex flex-col overflow-hidden',
           'bg-white shadow-2xl',
-          'right-0 bottom-0 left-0 w-full rounded-t-3xl',
-          isMinimized ? 'h-auto' : 'h-[70vh]',
+          'right-0 bottom-0 left-0 w-full h-[70vh] rounded-t-3xl',
+          isMinimized && 'max-lg:translate-y-[calc(100%-9rem)]',
           'lg:top-12 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[30vw] lg:min-w-120 lg:h-auto lg:rounded-none',
         ]"
     >
-        <!-- Úchyt je zároveň tlačidlo, aby sa panel dal zmenšiť aj bez gesta -->
-        <button
-            type="button"
-            class="flex justify-center py-2.5 lg:hidden"
-            aria-label="Detail cesty"
-            :aria-expanded="!isMinimized"
-            @click="isMinimized = !isMinimized"
-        >
-            <span class="h-1.5 w-10 rounded-full bg-neutral-500"></span>
-        </button>
-
         <div :class="['relative', {'min-h-16': !climb?.boulder?.image_url, 'max-lg:min-h-16': isMinimized}]">
             <div class="absolute top-4 left-4 z-10">
                 <UButton
@@ -71,35 +60,108 @@
                 />
             </div>
 
-            <TopoImage
+            <!-- Fotka sa pri zmenšení zbalí cez výšku riadku gridu, aby sa dala animovať -->
+            <div
                 v-if="climb?.boulder?.image_url"
-                :class="minimizedHidden"
-                :image-url="climb.boulder.image_url"
-                :alt="`Fotka kameňa ${climb.boulder.name}`"
-                :climbs="otherClimbs"
-                :selected-id="selectedClimbId"
-                @select="id => selectedClimbId = id"
-            />
-        </div>
-
-        <UModal
-            v-if="climb?.boulder?.image_url"
-            v-model:open="isFullscreen"
-            fullscreen
-            :title="climb.boulder.name"
-            :description="climb.name"
-            :ui="{ body: 'p-0 sm:p-0 bg-neutral-950', close: 'w-auto' }"
-        >
-            <template #body>
+                :class="['grid transition-[grid-template-rows] duration-300 ease-in-out', isMinimized ? 'max-lg:grid-rows-[0fr]' : 'grid-rows-[1fr]']"
+            >
                 <TopoImage
-                    contain
-                    class="h-full"
+                    class="min-h-0 overflow-hidden"
                     :image-url="climb.boulder.image_url"
                     :alt="`Fotka kameňa ${climb.boulder.name}`"
                     :climbs="otherClimbs"
                     :selected-id="selectedClimbId"
                     @select="id => selectedClimbId = id"
                 />
+            </div>
+        </div>
+
+        <UModal
+            v-if="climb?.boulder?.image_url"
+            v-model:open="isFullscreen"
+            fullscreen
+            :ui="{
+                body: 'p-0 sm:p-0 bg-neutral-950',
+                close: 'static w-auto',
+                wrapper: 'flex-1 min-w-0',
+                title: 'flex items-center gap-2 text-xl font-bold leading-tight',
+            }"
+        >
+            <template #title>
+                <span class="min-w-0">
+                    <template v-if="climb.topo_number">{{ climb.topo_number }}. </template>{{ climb.name }}
+                </span>
+                <UBadge
+                    v-if="climb.grade"
+                    color="primary"
+                    variant="solid"
+                    size="md"
+                    class="shrink-0 w-auto"
+                >
+                    {{ climb.grade.font }}
+                </UBadge>
+            </template>
+
+            <template #description>
+                <template v-if="climb.boulder.sector?.area">
+                    <ULink
+                        :to="`/area/${climb.boulder.sector.area.id}`"
+                        class="underline"
+                        @click="isFullscreen = false; selectedClimbId = null"
+                    >
+                        {{ climb.boulder.sector.area.name }}
+                    </ULink>
+                    |
+                </template>
+                <ULink
+                    v-if="climb.boulder.sector"
+                    class="underline"
+                    @click="isFullscreen = false; emit('selectSector', climb.boulder.sector_id)"
+                >
+                    {{ climb.boulder.sector.name }}
+                </ULink>
+            </template>
+
+            <template
+                v-if="climb.boulder.sector?.area"
+                #actions
+            >
+                <SShareButton
+                    size="sm"
+                    :title="climb.name"
+                    :path="`/area/${climb.boulder.sector.area.id}?climb=${climb.id}&fullscreen=1`"
+                />
+            </template>
+
+            <template #body>
+                <div class="relative h-full">
+                    <TopoImage
+                        contain
+                        class="h-full"
+                        :image-url="climb.boulder.image_url"
+                        :alt="`Fotka kameňa ${climb.boulder.name}`"
+                        :climbs="otherClimbs"
+                        :selected-id="selectedClimbId"
+                        @select="id => selectedClimbId = id"
+                    />
+
+                    <!-- Rovnaké listovanie medzi kameňmi ako v detaile -->
+                    <button
+                        v-for="nav in navs"
+                        :key="nav.label"
+                        type="button"
+                        :class="['group absolute inset-y-0 flex w-1/5 min-w-24 items-center px-4', nav.class]"
+                        :aria-label="nav.label"
+                        @click="go(nav.id)"
+                    >
+                        <span class="flex size-8 items-center justify-center rounded-full bg-white/80 text-neutral-900 group-hover:bg-white">
+                            <UIcon
+                                :name="nav.icon"
+                                class="size-5"
+                            />
+                        </span>
+                    </button>
+                </div>
             </template>
         </UModal>
 
@@ -296,11 +358,14 @@ const navPadding = computed(() => {
     return isMinimized.value ? 'px-4 max-lg:px-16' : 'px-4'
 })
 
-// Zmenšený panel (len mobil) ukazuje iba názov; skrytý obsah tak nie je ani fokusovateľný
-const minimizedHidden = computed(() => ({'max-lg:hidden': isMinimized.value}))
+// Zmenšený panel (len mobil) ukazuje iba názov; invisible obsah vyradí z fokusu a výšku nechá panelu na animáciu
+const minimizedHidden = computed(() => ({'max-lg:invisible': isMinimized.value}))
 const climb = ref<any>(null)
 const otherClimbs = ref<any[]>([])
 const isFullscreen = ref(false)
+// Zdieľaný odkaz s ?fullscreen otvorí fotku rovno na celú obrazovku – len raz, pri prvej načítanej ceste
+const route = useRoute()
+let openFullscreen = route.query.fullscreen !== undefined
 // Čísla z topa sú text (3a, 3+3a), numeric zoradí 2 pred 10
 const collator = new Intl.Collator('sk', {numeric: true})
 // Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
@@ -325,6 +390,14 @@ watch(selectedClimbId, async (id) => {
         .single()
 
     climb.value = currentClimb
+    // Kameň bez fotky nemá čo ukázať na celej obrazovke
+    if (!currentClimb?.boulder?.image_url) isFullscreen.value = false
+    else if (openFullscreen) isFullscreen.value = true
+
+    if (openFullscreen) {
+        openFullscreen = false
+        navigateTo({query: {...route.query, fullscreen: undefined}}, {replace: true})
+    }
 
     // 2. Načítame všetky cesty na rovnakom bouldri pre zoznam pod detailom
     if (currentClimb?.boulder_id) {
