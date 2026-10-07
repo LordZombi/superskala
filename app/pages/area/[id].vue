@@ -272,6 +272,15 @@ const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
 const selectedBoulder = computed(() => boulders.value[boulderIndex.value] ?? null)
 const selectedSector = computed(() => sectors.value.find(({boulders}) =>
     selectedBoulder.value && boulders.includes(selectedBoulder.value)) ?? null)
+const selectedClimb = computed(() =>
+    selectedBoulder.value?.climbs.find(({id}) => id === selectedClimbId.value) ?? null)
+
+// Štatistika otvorených ciest; pri odkaze priamo na cestu počká, kým sa oblasť načíta a pozná názov
+watch(selectedClimb, climb => climb && window.gtag?.('event', 'climb_open', {
+    climb_id: climb.id,
+    climb_name: climb.name,
+    area_name: area.value?.name,
+}))
 
 const online = useOnline()
 const isOffline = computed(() => !online.value)
@@ -290,6 +299,12 @@ const saveOffline = async () => {
     }
 
     await save()
+
+    window.gtag?.('event', 'area_save_offline', {
+        area_id: area.value?.id,
+        area_name: area.value?.name,
+        failed_files: failed.value,
+    })
 
     toast.add(failed.value
         ? {title: 'Oblasť sa neuložila celá', description: `${failed.value} súborov sa nepodarilo stiahnuť, skús to znova.`, color: 'error'}
@@ -356,7 +371,7 @@ const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat,
 // Rovnaký formát posiela aj server pre náhľady odkazov (server/plugins/share-meta.ts)
 useHead({
     title: () => {
-        const climb = boulders.value[boulderIndex.value]?.climbs.find(({id}) => id === selectedClimbId.value)
+        const climb = selectedClimb.value
 
         return ['Superskaly', area.value?.name, climb && [climb.topo_number && `${climb.topo_number}.`, climb.name]
             .filter(Boolean).join(' ')].filter(Boolean).join(' | ')

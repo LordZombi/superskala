@@ -60,6 +60,8 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             mapyApiKey: '', // NUXT_PUBLIC_MAPY_API_KEY
+            // Measurement ID je verejné (vidno ho v zdrojáku každej stránky), preto nemusí byť v .env
+            gaId: 'G-EY7G4EY7LR',
         },
     },
 
