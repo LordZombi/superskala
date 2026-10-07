@@ -57,6 +57,9 @@ const emit = defineEmits<{
     select: [id: string]
 }>()
 
+/** Špendlík na úpravu GPS (editor): klik do mapy ho položí, dá sa ťahať. undefined = vypnutý, null = zatiaľ bez polohy */
+const pin = defineModel<Pick<MapFocus, 'lat' | 'lon'> | null>('pin')
+
 const mapElement = useTemplateRef('mapElement')
 const config = useRuntimeConfig()
 const toast = useToast()
@@ -158,10 +161,40 @@ const fitPoints = () => {
     })
 }
 
+let pinMarker: L.Marker | undefined
+const pinIcon = L.divIcon({
+    className: '',
+    html: '<span class="block size-5 rounded-full bg-red-600 ring-2 ring-white"></span>',
+    iconSize: [20, 20],
+})
+
+// 6 desatinných miest je asi 10 cm, presnejšie to z mapy aj tak nejde
+const setPin = ({lat, lng}: L.LatLng) => pin.value = {lat: +lat.toFixed(6), lon: +lng.toFixed(6)}
+
+const renderPin = () => {
+    if (!map) return
+
+    if (!pin.value) {
+        pinMarker?.remove()
+        pinMarker = undefined
+        return
+    }
+
+    const latlng: L.LatLngTuple = [pin.value.lat, pin.value.lon]
+    if (pinMarker) {
+        pinMarker.setLatLng(latlng)
+        return
+    }
+
+    // Bez fokusu z klávesnice: ťahať sa ním nedá, súradnice sa dajú napísať do poľa v editore
+    pinMarker = L.marker(latlng, {icon: pinIcon, draggable: true, keyboard: false, zIndexOffset: 1000}).addTo(map)
+    pinMarker.on('dragend', () => pinMarker && setPin(pinMarker.getLatLng()))
+}
+
 const reducedMotion = usePreferredReducedMotion()
 
 // 'post': výber cesty zároveň mení veľkosť mapy, rátať treba až s novou
-watch(() => focus, () => {
+const applyFocus = () => {
     if (!map) return
 
     map.invalidateSize({pan: false})
@@ -172,7 +205,9 @@ watch(() => focus, () => {
         maxZoom: focus.zoom,
         animate: reducedMotion.value !== 'reduce',
     })
-}, {flush: 'post'})
+}
+
+watch(() => focus, applyFocus, {flush: 'post'})
 
 onMounted(() => {
     if (!mapElement.value) return
@@ -193,10 +228,17 @@ onMounted(() => {
     positionLayer.addTo(map)
     map.on('locationfound', onLocationFound)
     map.on('locationerror', onLocationError)
+    map.on('click', ({latlng}) => {
+        if (pin.value !== undefined) setPin(latlng)
+    })
     renderPoints()
+    renderPin()
+    // Mapa v editore vzniká až s už nastaveným focusom, watch by ho nezachytil
+    if (focus) applyFocus()
 })
 
 watch(() => points, renderPoints)
+watch(pin, renderPin)
 
 // Mapa mení veľkosť pri zmenšení panela oblasti, Leaflet si to sám nevšimne.
 // Bez posunu, aby výrez ostal ukotvený hore a neskryl sa za spodný panel

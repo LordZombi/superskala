@@ -101,6 +101,57 @@
                             </div>
                         </div>
                     </UFormField>
+
+                    <fieldset>
+                        <legend class="text-sm font-medium text-default mb-1">
+                            GPS na mape
+                        </legend>
+                        <div class="grid grid-cols-3 gap-2">
+                            <UButton
+                                v-for="(level, key) in gpsLevels"
+                                :key="key"
+                                :variant="gpsTarget === key ? 'solid' : 'outline'"
+                                color="neutral"
+                                icon="i-heroicons-map-pin"
+                                :label="level.label"
+                                :disabled="!level.id"
+                                :aria-pressed="gpsTarget === key"
+                                @click="gpsTarget = gpsTarget === key ? undefined : key"
+                            />
+                        </div>
+                    </fieldset>
+
+                    <template v-if="gpsRow">
+                        <MapView
+                            v-model:pin="gpsPin"
+                            class="h-80 overflow-hidden rounded-md"
+                            :points="gpsPoints"
+                            :focus="gpsFocus"
+                            permanent-labels
+                            fit-to-points
+                        />
+
+                        <UFormField
+                            :label="`Súradnice – ${gpsRow.name}`"
+                            description="Klikni do mapy, potiahni špendlík alebo vlož „lat, lon“. Prázdne pole GPS zmaže."
+                        >
+                            <div class="flex gap-2 w-full">
+                                <UInput
+                                    v-model.lazy="gpsText"
+                                    placeholder="48.611123, 17.576012"
+                                    icon="i-heroicons-map-pin"
+                                    class="flex-1"
+                                />
+                                <div class="flex-none">
+                                    <UButton
+                                        label="Uložiť GPS"
+                                        :disabled="!isDev"
+                                        @click="saveGps"
+                                    />
+                                </div>
+                            </div>
+                        </UFormField>
+                    </template>
                 </div>
             </div>
 
@@ -241,8 +292,9 @@
     setup
     lang="ts"
 >
-import {onMounted, ref, watch} from 'vue';
+import {computed, onMounted, ref, watch} from 'vue';
 import type {Database} from '~/types/database.types';
+import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue';
 import SDivider from "~/components/super/SDivider.vue";
 import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
 
@@ -377,6 +429,69 @@ watch(climbId, (id) => {
         pathPoints.value = parsePathString(currentClimb.topo_path);
     }
 });
+
+// --- GPS: špendlík na mape pre vybranú oblasť, sektor alebo kameň ---
+type GpsTarget = 'area' | 'sector' | 'boulder';
+const hasGps = (row?: any) => row?.lat != null && row?.lon != null;
+
+const gpsTarget = ref<GpsTarget>();
+const gpsPin = ref<Pick<MapFocus, 'lat' | 'lon'> | null>(null);
+const gpsFocus = ref<MapFocus | null>(null);
+
+// Poradie od najširšej úrovne; zoom sedí s tým, ako sa na ne približuje stránka oblasti
+const gpsLevels = computed(() => ({
+    area: {label: 'Oblasť', table: 'areas' as const, rows: areas.value, id: areaId.value, zoom: 13},
+    sector: {label: 'Sektor', table: 'sectors' as const, rows: sectors.value, id: sectorId.value, zoom: 17},
+    boulder: {label: 'Kameň', table: 'boulders' as const, rows: boulders.value, id: boulderId.value, zoom: 18},
+}));
+const selectedRow = (key: GpsTarget) => gpsLevels.value[key].rows.find(row => row.id === gpsLevels.value[key].id);
+const gpsRow = computed(() => gpsTarget.value && selectedRow(gpsTarget.value));
+
+// Ostatné body tej istej úrovne, nech je podľa čoho sa na mape orientovať
+const gpsPoints = computed<MapPoint[]>(() => !gpsTarget.value ? [] : gpsLevels.value[gpsTarget.value].rows
+    .filter(row => row !== gpsRow.value && hasGps(row))
+    .map(row => ({id: row.id, lat: row.lat, lon: row.lon, label: row.name})));
+
+// Len pri zmene záznamu, nie pri každom posune špendlíka – inak by mapa stále odlietala
+watch(gpsRow, (row) => {
+    if (!row || !gpsTarget.value) return;
+
+    gpsPin.value = hasGps(row) ? {lat: row.lat, lon: row.lon} : null;
+
+    // Bez vlastnej GPS sa mapa priblíži na najbližšiu nadradenú úroveň, ktorá ju má
+    const keys = Object.keys(gpsLevels.value) as GpsTarget[];
+    const near = keys.slice(0, keys.indexOf(gpsTarget.value) + 1).reverse().find(key => hasGps(selectedRow(key)));
+    const nearRow = near && selectedRow(near);
+    gpsFocus.value = near ? {lat: nearRow.lat, lon: nearRow.lon, zoom: gpsLevels.value[near].zoom} : null;
+});
+
+// Alternatíva ku klikaniu do mapy: „lat, lon“ sa dá napísať alebo vložiť (.lazy, aby sa neprepisovalo počas písania)
+const gpsText = computed({
+    get: () => gpsPin.value ? `${gpsPin.value.lat}, ${gpsPin.value.lon}` : '',
+    set: (text: string) => {
+        if (!text.trim()) {
+            gpsPin.value = null;
+            return;
+        }
+        const [lat, lon] = text.trim().split(/[\s,;]+/).map(Number);
+        if (lat !== undefined && lon !== undefined && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) gpsPin.value = {lat, lon};
+    },
+});
+
+const saveGps = async () => {
+    const row = gpsRow.value;
+    if (!row || !gpsTarget.value) return;
+
+    const coords = {lat: gpsPin.value?.lat ?? null, lon: gpsPin.value?.lon ?? null};
+    // select(): keď zápis zastaví RLS, Supabase nevráti chybu, len žiadny riadok
+    const {data, error} = await client.from(gpsLevels.value[gpsTarget.value].table).update(coords).eq('id', row.id).select('id');
+    if (error || !data?.length) alert(`Uloženie GPS zlyhalo: ${error?.message ?? 'databáza zápis nepovolila'}`);
+    else {
+        // Lokálny zoznam sa znova nenačítava, tak nech sedí s DB
+        Object.assign(row, coords);
+        alert('GPS uložená!');
+    }
+};
 
 // Pridávanie nových záznamov cez prompt okná
 const addArea = async () => {
