@@ -1,0 +1,20 @@
+<template>
+    <UButton
+        icon="i-lucide-arrow-up-narrow-wide"
+        label="Podľa obtiažnosti"
+        color="neutral"
+        :variant="sortByGrade ? 'subtle' : 'outline'"
+        size="xs"
+        class="rounded-full w-auto"
+        :aria-pressed="sortByGrade"
+        @click="sortByGrade = !sortByGrade"
+    />
+</template>
+
+<script
+    setup
+    lang="ts"
+>
+// Jeden prepínač pre zoznam v oblasti aj detail cesty, preto zdieľaný stav
+const sortByGrade = useState<boolean>('sortByGrade', () => false)
+</script>

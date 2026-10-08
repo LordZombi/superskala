@@ -203,13 +203,16 @@
                     v-if="!isFullscreen"
                     :class="['space-y-3', minimizedHidden]"
                 >
-                    <h3 class="text-xs font-black uppercase text-slate-400">
-                        Ostatné cesty na
-                        bouldri</h3>
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="text-xs font-black uppercase text-slate-400">
+                            Ostatné cesty na
+                            bouldri</h3>
+                        <SSortChip/>
+                    </div>
                     <div class="grid gap-2">
                         <UFieldGroup orientation="vertical">
                             <UButton
-                                v-for="other in climbs"
+                                v-for="other in listedClimbs"
                                 :key="other.id"
                                 :variant="other.id === selectedClimbId ? 'subtle' : 'outline'"
                                 :color="other.id === selectedClimbId ? 'neutral' : 'neutral'"
@@ -248,6 +251,7 @@ import {computed, ref, useTemplateRef, watch} from 'vue'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import SDivider from "~/components/super/SDivider.vue";
 import SShareButton from "~/components/super/SShareButton.vue";
+import SSortChip from "~/components/super/SSortChip.vue";
 import TopoImage from "~/components/TopoImage.vue";
 
 // Dáta dodá stránka oblasti zo stromu, ktorý už má načítaný – detail tak funguje aj offline bez ďalších dopytov
@@ -294,6 +298,11 @@ const navPadding = computed(() => {
 
 // Zmenšený panel (len mobil) ukazuje iba názov; invisible obsah vyradí z fokusu a výšku nechá panelu na animáciu
 const minimizedHidden = computed(() => ({'max-lg:invisible': isMinimized.value}))
+// Zoznam ďalších ciest drží poradie z topa, kým si nezvolíš radenie podľa obtiažnosti (rovnaké ako v zozname oblasti)
+const sortByGrade = useState<boolean>('sortByGrade', () => false)
+const listedClimbs = computed(() => sortByGrade.value
+    ? climbs.toSorted((a, b) => (a.grade?.value ?? Infinity) - (b.grade?.value ?? Infinity))
+    : climbs)
 const climb = computed(() => climbs.find(({id}) => id === selectedClimbId.value) ?? null)
 const isFullscreen = ref(false)
 

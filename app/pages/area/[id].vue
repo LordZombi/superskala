@@ -65,6 +65,8 @@
 
                     <SDivider :class="minimizedHidden"/>
 
+                    <SSortChip :class="minimizedHidden"/>
+
                     <UAccordion
                         v-model="openSectors"
                         :class="minimizedHidden"
@@ -92,11 +94,14 @@
                                 </p>
 
                                 <div
-                                    v-for="boulder in item.boulders"
+                                    v-for="boulder in groupsOf(item)"
                                     :key="boulder.id"
                                     class="space-y-2"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div
+                                        v-if="!sortByGrade"
+                                        class="flex items-center gap-3"
+                                    >
                                         <img
                                             v-if="boulder.image_url"
                                             alt=""
@@ -131,8 +136,13 @@
                                             class="justify-between px-3 py-2.5"
                                             @click="selectedClimbId = climb.id"
                                         >
-                                            <span :class="[climb.id === selectedClimbId ? 'font-bold' : 'font-medium']">
+                                            <span :class="['text-left', climb.id === selectedClimbId ? 'font-bold' : 'font-medium']">
                                                 <template v-if="climb.topo_number">{{ climb.topo_number }}. </template>{{ climb.name }}
+                                                <span
+                                                    v-if="sortByGrade"
+                                                    class="block text-xs font-normal text-slate-600"
+                                                    v-text="climb.boulderName"
+                                                ></span>
                                             </span>
                                             <span class="text-[10px] font-mono">
                                                 {{ climb.grade?.font || (climb.is_project ? 'projekt' : '?') }}
@@ -189,6 +199,7 @@ import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
+import SSortChip from '~/components/super/SSortChip.vue'
 import {useOfflineArea} from '~/composables/useOfflineArea'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
@@ -215,6 +226,7 @@ watch(() => route.query.climb, climb => selectedClimbId.value = typeof climb ===
 const area = ref<Awaited<ReturnType<typeof getAreaWithDetails>>>(null)
 const notFound = ref(false)
 const openSectors = ref<string[]>([])
+const sortByGrade = useState<boolean>('sortByGrade', () => false)
 
 // Panel je zároveň scroller, preto ten istý element dvakrát
 const panel = useTemplateRef('panel')
@@ -243,6 +255,11 @@ const sectors = computed(() => (area.value?.sectors ?? [])
             }))
             .sort((a, b) => collator.compare(a.name, b.name))
 
+        // Cesty celého sektora od najľahšej; stabilné radenie nechá rovnaké stupne v poradí topa, bez stupňa (projekty) na koniec
+        const byGrade = boulders
+            .flatMap(boulder => boulder.climbs.map(climb => ({...climb, boulderName: boulder.name})))
+            .sort((a, b) => (a.grade?.value ?? Infinity) - (b.grade?.value ?? Infinity))
+
         const grades = boulders
             .flatMap(boulder => boulder.climbs.flatMap(climb => climb.grade ?? []))
             .sort((a, b) => a.value - b.value)
@@ -253,11 +270,16 @@ const sectors = computed(() => (area.value?.sectors ?? [])
             label: sector.name,
             value: sector.id,
             boulders,
+            byGrade,
             climbCount: boulders.reduce((sum, boulder) => sum + boulder.climbs.length, 0),
             gradeRange: easiest && hardest && [...new Set([easiest.font, hardest.font])].join(' – '),
         }
     })
     .sort((a, b) => collator.compare(a.name, b.name)))
+
+// Pri radení podľa obtiažnosti sa kamene zlievajú do jedného zoznamu sektora (bez hlavičky kameňa)
+const groupsOf = (sector: (typeof sectors.value)[number]) =>
+    sortByGrade.value ? [{id: sector.id, climbs: sector.byGrade}] : sector.boulders
 
 const climbCount = computed(() => sectors.value.reduce((sum, sector) => sum + sector.climbCount, 0))
 
@@ -312,7 +334,8 @@ const saveOffline = async () => {
 }
 
 // Listovanie v detaile ide cestu po ceste; po poslednej na kameni pokračuje ďalším kameňom
-const climbIds = computed(() => boulders.value.flatMap(boulder => boulder.climbs.map(({id}) => id)))
+const climbIds = computed(() => sectors.value.flatMap(sector =>
+    groupsOf(sector).flatMap(group => group.climbs.map(({id}) => id))))
 
 const siblingClimbId = (offset: number) => {
     const index = climbIds.value.indexOf(selectedClimbId.value ?? '')
