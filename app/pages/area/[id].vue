@@ -422,6 +422,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     // Pri odchode zo stránky už URL neprepisujeme
     stopQuerySync()
-    selectedClimbId.value = null
+    // Výber tu nenulujeme: nová oblasť ho nastaví z ?climb= vo svojom setupe, ktorý beží skôr, než sa táto stránka odmontuje
+    // (Suspense), takže nulovanie by cestu z hľadania zrušilo a ?climb= by z URL zmizol
 })
 </script>
