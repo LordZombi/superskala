@@ -183,7 +183,7 @@
                     Detaily cesty
                 </h2>
                 <div class="space-y-4">
-                    <UFormField label="Názov cesty">
+                    <UFormField label="Názov cesty" required>
                         <UInput
                             v-model="name"
                             placeholder="napr., Burden of Dreams"
@@ -235,31 +235,12 @@
 
             <div>
                 <h2 class="text-lg font-semibold text-primary-500 mb-3">
-                    Režim kreslenia
+                    Kreslenie cesty
                 </h2>
-                <div class="grid grid-cols-3 gap-2 mb-2">
-                    <UButton
-                        :variant="mode === 'start' ? 'solid' : 'outline'"
-                        color="primary"
-                        @click="mode = 'start'"
-                        icon="i-heroicons-map-pin"
-                        label="Štart"
-                    />
-                    <UButton
-                        :variant="mode === 'top' ? 'solid' : 'outline'"
-                        color="error"
-                        @click="mode = 'top'"
-                        icon="i-heroicons-flag"
-                        label="Top"
-                    />
-                    <UButton
-                        :variant="mode === 'path' ? 'solid' : 'outline'"
-                        color="info"
-                        @click="mode = 'path'"
-                        icon="i-heroicons-pencil-square"
-                        label="Cesta"
-                    />
-                </div>
+                <p class="text-sm text-neutral-600 mb-3">
+                    Klik do fotky pridá bod, ťahaním ho presunieš, dvojklikom ho odstrániš.
+                    Z klávesnice: šípky bod posúvajú, Delete ho odstráni.
+                </p>
                 <UButton
                     block
                     color="neutral"
@@ -283,12 +264,50 @@
                     size="lg"
                     color="primary"
                     icon="i-heroicons-cloud-arrow-up"
-                    :disabled="!isDev"
+                    :disabled="!isDev || !name.trim()"
                     @click="$emit('save')"
                 >
                     Uložiť zmeny
                 </UButton>
             </UTooltip>
+
+            <UModal
+                v-model:open="confirmDelete"
+                title="Zmazať cestu?"
+                :description="`${name.trim() ? `Cesta „${name}“` : 'Táto cesta'} sa natrvalo odstráni z databázy.`"
+                :close="{class: 'w-auto'}"
+            >
+                <UButton
+                    v-if="climbId"
+                    block
+                    class="mt-3"
+                    color="error"
+                    variant="soft"
+                    icon="i-heroicons-trash"
+                    :disabled="!isDev"
+                >
+                    Zmazať cestu z databázy
+                </UButton>
+                <template #footer="{close}">
+                    <div class="flex justify-end gap-2 w-full">
+                        <UButton
+                            class="w-auto"
+                            color="neutral"
+                            variant="outline"
+                            @click="close"
+                        >
+                            Zrušiť
+                        </UButton>
+                        <UButton
+                            class="w-auto"
+                            color="error"
+                            @click="onDelete"
+                        >
+                            Zmazať
+                        </UButton>
+                    </div>
+                </template>
+            </UModal>
         </div>
     </UCard>
 </template>
@@ -301,7 +320,7 @@ import {computed, onMounted, ref, watch} from 'vue';
 import type {Database} from '~/types/database.types';
 import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue';
 import SDivider from "~/components/super/SDivider.vue";
-import type {PathDrawingModeType} from "~/components/editor/Canvas.vue";
+import {UModal} from '#components';
 
 const isDev = import.meta.dev
 type Grade = Database['public']['Tables']['grades']['Row'];
@@ -318,10 +337,7 @@ const videoUrl = defineModel<string>('videoUrl');
 const gradeId = defineModel<number>('gradeId');
 const isSitStart = defineModel<boolean>('isSitStart', {default: false});
 const isDangerous = defineModel<boolean>('isDangerous', {default: false});
-const mode = defineModel<PathDrawingModeType>('mode');
 
-const startPos = defineModel<{ x: number, y: number } | null>('startPos', {default: null});
-const topPos = defineModel<{ x: number, y: number } | null>('topPos', {default: null});
 const pathPoints = defineModel<{ x: number, y: number }[]>('pathPoints', {default: () => []});
 
 // Kaskádové lokalizačné modely
@@ -331,9 +347,16 @@ const boulderId = defineModel<string | null>('boulderId', {default: null});
 const climbId = defineModel<string | null>('climbId', {default: null});
 
 const client = useSupabaseClient<Database>();
+const toast = useToast();
 const {parsePathString} = useTopoPath();
 
-defineEmits(['save', 'newClimb']);
+const emit = defineEmits(['save', 'newClimb', 'delete']);
+
+const confirmDelete = ref(false);
+const onDelete = () => {
+    confirmDelete.value = false;
+    emit('delete');
+};
 
 // Lokálne zoznamy pre selekty
 const areas = ref<any[]>([]);
@@ -425,12 +448,6 @@ watch(climbId, (id) => {
         isSitStart.value = currentClimb.is_sit_start || false;
         isDangerous.value = currentClimb.is_dangerous || false;
 
-        if (currentClimb.start_x !== null && currentClimb.start_y !== null) {
-            startPos.value = {x: currentClimb.start_x, y: currentClimb.start_y};
-        }
-        if (currentClimb.top_x !== null && currentClimb.top_y !== null) {
-            topPos.value = {x: currentClimb.top_x, y: currentClimb.top_y};
-        }
         pathPoints.value = parsePathString(currentClimb.topo_path);
     }
 });
@@ -497,11 +514,11 @@ const saveGpsAndDescription = async () => {
     };
     // select(): keď zápis zastaví RLS, Supabase nevráti chybu, len žiadny riadok
     const {data, error} = await client.from(gpsLevels.value[gpsTarget.value].table).update(coords).eq('id', row.id).select('id');
-    if (error || !data?.length) alert(`Uloženie zlyhalo: ${error?.message ?? 'databáza zápis nepovolila'}`);
+    if (error || !data?.length) toast.add({title: 'Uloženie zlyhalo', description: error?.message ?? 'Databáza zápis nepovolila', color: 'error'});
     else {
         // Lokálny zoznam sa znova nenačítava, tak nech sedí s DB
         Object.assign(row, coords);
-        alert('GPS a popis uložené!');
+        toast.add({title: 'GPS a popis uložené', description: row.name, color: 'success'});
     }
 };
 
@@ -510,7 +527,7 @@ const addArea = async () => {
     const nameInput = prompt('Zadaj názov novej oblasti:');
     if (!nameInput) return;
     const {data, error} = await client.from('areas').insert({name: nameInput}).select().single();
-    if (error) alert(error.message);
+    if (error) toast.add({title: 'Uloženie zlyhalo', description: error.message, color: 'error'});
     else if (data) {
         areas.value.push(data);
         areaId.value = data.id;
@@ -518,14 +535,14 @@ const addArea = async () => {
 };
 
 const addSector = async () => {
-    if (!areaId.value) return alert('Najskôr musíš vybrať oblasť!');
+    if (!areaId.value) return toast.add({title: 'Najskôr vyber oblasť', color: 'warning'});
     const nameInput = prompt('Zadaj názov nového sektoru:');
     if (!nameInput) return;
     const {data, error} = await client.from('sectors').insert({
         name: nameInput,
         area_id: areaId.value
     }).select().single();
-    if (error) alert(error.message);
+    if (error) toast.add({title: 'Uloženie zlyhalo', description: error.message, color: 'error'});
     else if (data) {
         sectors.value.push(data);
         sectorId.value = data.id;
@@ -533,14 +550,14 @@ const addSector = async () => {
 };
 
 const addBoulder = async () => {
-    if (!sectorId.value) return alert('Najskôr musíš vybrať sektor!');
+    if (!sectorId.value) return toast.add({title: 'Najskôr vyber sektor', color: 'warning'});
     const nameInput = prompt('Zadaj názov nového kameňa:');
     if (!nameInput) return;
     const {data, error} = await client.from('boulders').insert({
         name: nameInput,
         sector_id: sectorId.value
     }).select().single();
-    if (error) alert(error.message);
+    if (error) toast.add({title: 'Uloženie zlyhalo', description: error.message, color: 'error'});
     else if (data) {
         boulders.value.push(data);
         boulderId.value = data.id;
@@ -548,8 +565,6 @@ const addBoulder = async () => {
 };
 
 const clearDrawing = () => {
-    startPos.value = null;
-    topPos.value = null;
     pathPoints.value = [];
 };
 
@@ -595,7 +610,7 @@ const handleImageUpload = async (event: Event) => {
             if (current) current.image_url = publicUrlData.publicUrl;
         }
     } catch (error: any) {
-        alert(`Image upload failed: ${error.message}`);
+        toast.add({title: 'Nahranie fotky zlyhalo', description: error.message, color: 'error'});
         console.error('Image upload error:', error);
     } finally {
         input.value = '';

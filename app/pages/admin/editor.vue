@@ -6,6 +6,7 @@
                 <EditorSidebar
                     @save="handleSave"
                     @newClimb="handleNewClimb"
+                    @delete="handleDelete"
                     :available-grades="availableGrades"
                     v-model:areaId="state.areaId"
                     v-model:sectorId="state.sectorId"
@@ -18,9 +19,6 @@
                     v-model:gradeId="state.gradeId"
                     v-model:isSitStart="state.isSitStart"
                     v-model:isDangerous="state.isDangerous"
-                    v-model:mode="state.mode"
-                    v-model:startPos="state.startPos"
-                    v-model:topPos="state.topPos"
                     v-model:pathPoints="state.pathPoints"
                 />
             </div>
@@ -29,11 +27,8 @@
                 <EditorCanvas
                     v-if="selectedBoulderId"
                     :image-url="state.imageUrl"
-                    :mode="state.mode"
                     :is-uploading="loading"
                     @upload="handleImageUpload"
-                    v-model:startPos="state.startPos"
-                    v-model:topPos="state.topPos"
                     v-model:pathPoints="state.pathPoints"
                 />
             </div>
@@ -48,7 +43,6 @@
 import { reactive, ref, onMounted, watch, nextTick } from 'vue';
 import { useDebounceFn } from '@vueuse/core';
 import type { Database } from '~/types/database.types';
-import type { PathDrawingModeType } from "~/components/editor/Canvas.vue";
 
 // --- TYPES ---
 type Grade = Database['public']['Tables']['grades']['Row'];
@@ -62,9 +56,6 @@ interface EditorState {
     gradeId?: number;
     isSitStart: boolean;
     isDangerous: boolean;
-    mode: PathDrawingModeType;
-    startPos: { x: number; y: number } | null;
-    topPos: { x: number; y: number } | null;
     pathPoints: { x: number; y: number }[];
     areaId: string | null;
     sectorId: string | null;
@@ -72,6 +63,7 @@ interface EditorState {
 
 // --- STATE ---
 const client = useSupabaseClient<Database>();
+const toast = useToast();
 const state = reactive<EditorState>({
     climbId: '',
     imageUrl: '',
@@ -81,9 +73,6 @@ const state = reactive<EditorState>({
     gradeId: undefined,
     isSitStart: false,
     isDangerous: false,
-    mode: undefined,
-    startPos: null,
-    topPos: null,
     pathPoints: [],
     areaId: null,
     sectorId: null,
@@ -126,7 +115,7 @@ const pathStringToPoints = (path: string): { x: number, y: number }[] => {
 
 const handleSave = async () => {
     if (!selectedBoulderId.value) {
-        alert('Prosím, najskôr vyber boulder.');
+        toast.add({title: 'Najskôr vyber boulder', color: 'warning'});
         return;
     }
 
@@ -138,18 +127,14 @@ const handleSave = async () => {
         grade_id: state.gradeId,
         is_sit_start: state.isSitStart,
         is_dangerous: state.isDangerous,
-        start_x: state.startPos?.x ?? null,
-        start_y: state.startPos?.y ?? null,
-        top_x: state.topPos?.x ?? null,
-        top_y: state.topPos?.y ?? null,
         topo_path: pathPointsToSvgString(state.pathPoints),
     };
 
     if (state.climbId) { // --- UPDATE EXISTUJÚCEJ CESTY ---
         const { error } = await client.from('climbs').update(dataToSave).eq('id', state.climbId);
-        if (error) alert(`Update zlyhal: ${error.message}`);
+        if (error) toast.add({title: 'Uloženie zlyhalo', description: error.message, color: 'error'});
         else {
-            alert('Cesta úspešne upravená!');
+            toast.add({title: 'Cesta uložená', description: state.name, color: 'success'});
             // Trik na vynútenie re-fetchu v sidebare (prebliknutie ID)
             const bId = selectedBoulderId.value;
             const cId = state.climbId;
@@ -161,9 +146,9 @@ const handleSave = async () => {
         }
     } else { // --- ZÁPIS NOVEJ CESTY ---
         const { data, error } = await client.from('climbs').insert(dataToSave).select().single();
-        if (error) alert(`Vytvorenie zlyhalo: ${error.message}`);
+        if (error) toast.add({title: 'Vytvorenie zlyhalo', description: error.message, color: 'error'});
         else {
-            alert('Nová cesta úspešne vytvorená!');
+            toast.add({title: 'Nová cesta vytvorená', description: state.name, color: 'success'});
             const bId = selectedBoulderId.value;
             selectedBoulderId.value = undefined;
             nextTick(() => {
@@ -182,9 +167,25 @@ const handleNewClimb = () => {
     state.gradeId = undefined;
     state.isSitStart = false;
     state.isDangerous = false;
-    state.startPos = null;
-    state.topPos = null;
     state.pathPoints = [];
+};
+
+const handleDelete = async () => {
+    // .select() vráti zmazané riadky, takže vidíme aj prípad, keď databáza zmazanie ticho nepovolí
+    const { data, error } = await client.from('climbs').delete().eq('id', state.climbId).select();
+    if (error || !data?.length) {
+        toast.add({ title: 'Zmazanie zlyhalo', description: error?.message ?? 'Databáza zmazanie nepovolila', color: 'error' });
+        return;
+    }
+    toast.add({ title: 'Cesta zmazaná', description: state.name, color: 'success' });
+
+    // Rovnaký trik ako pri ukladaní: prebliknutie boulderu vynúti nový fetch ciest v sidebare
+    const bId = selectedBoulderId.value;
+    handleNewClimb();
+    selectedBoulderId.value = undefined;
+    nextTick(() => {
+        selectedBoulderId.value = bId;
+    });
 };
 
 const { uploadBoulderImage, loading } = useSupabase();

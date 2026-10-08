@@ -2,13 +2,14 @@
     <UCard>
         <div
             v-if="imageUrl"
-            class="relative"
+            class="relative select-none"
             ref="imageContainer"
         >
             <img
                 :src="imageUrl"
                 @load="onImageLoad"
                 class="w-full h-auto"
+                draggable="false"
                 alt="Boulder for topo editing"
             />
             <svg
@@ -36,23 +37,24 @@
                     stroke-linecap="round"
                     stroke-linejoin="round"
                 />
-                <!-- Start Point -->
+                <!-- Body cesty: ťahaním sa presúvajú, dvojklik ich odstráni, z klávesnice šípky a Delete -->
                 <circle
-                    v-if="startPos?.x"
-                    :cx="startPos.x * imageDimensions.width / 100"
-                    :cy="startPos.y * imageDimensions.height / 100"
-                    r="15"
-                    class="fill-emerald-500 stroke-emerald-500"
-                    stroke-width="2"
-                />
-                <!-- Top Point -->
-                <circle
-                    v-if="topPos?.x"
-                    :cx="topPos.x * imageDimensions.width / 100"
-                    :cy="topPos.y * imageDimensions.height / 100"
-                    r="15"
-                    class="fill-red-500 stroke-red-500"
-                    stroke-width="2"
+                    v-for="(point, i) in pathPoints"
+                    :key="i"
+                    :cx="point.x * imageDimensions.width / 100"
+                    :cy="point.y * imageDimensions.height / 100"
+                    :r="pointRadius"
+                    :stroke-width="pointRadius / 5"
+                    tabindex="0"
+                    role="button"
+                    :aria-label="`Bod ${i + 1} z ${pathPoints?.length}`"
+                    aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Delete"
+                    class="fill-sky-500 stroke-white cursor-move touch-none outline-none focus-visible:stroke-amber-400"
+                    @click.stop
+                    @dblclick.stop="removePoint(i)"
+                    @pointerdown.stop="grabPoint"
+                    @pointermove="dragPoint(i, $event)"
+                    @keydown="onPointKeydown(i, $event)"
                 />
             </svg>
         </div>
@@ -92,6 +94,7 @@
     lang="ts"
 >
 import {computed, ref, watch} from 'vue';
+import {clamp} from '@vueuse/core';
 import {UCard, UIcon} from '#components';
 
 /**
@@ -99,17 +102,15 @@ import {UCard, UIcon} from '#components';
  * It's a "dumb" component that receives state and emits events.
  */
 
-export type PathDrawingModeType = 'start' | 'top' | 'path' | undefined
+type Point = { x: number; y: number };
+
 const props = defineProps<{
     imageUrl: string | null;
-    mode: PathDrawingModeType;
     isUploading?: boolean;
 }>();
 
 const emit = defineEmits(['upload']);
 
-const startPos = defineModel<{ x: number; y: number } | null>('startPos');
-const topPos = defineModel<{ x: number; y: number } | null>('topPos');
 const pathPoints = defineModel<{ x: number; y: number }[]>('pathPoints');
 
 const imageContainer = ref<HTMLElement | null>(null);
@@ -117,6 +118,9 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const imageDimensions = ref({width: 1, height: 1});
 
 const {generateSexyPathD, toAbsolute} = useTopoPath();
+
+// Veľkosť bodu sa škáluje s fotkou, aby bol na malom aj veľkom obrázku rovnako dobre chytiteľný
+const pointRadius = computed(() => imageDimensions.value.width / 60);
 
 const onImageLoad = (event: Event) => {
     const img = event.target as HTMLImageElement;
@@ -172,32 +176,81 @@ const pathDSexy = computed(() => {
     return generateSexyPathD(absPoints)
 });
 
-/**
- * Handles clicks on the SVG canvas.
- * Pridaný console.log pre ladenie súradníc.
- */
+/** Pozícia udalosti na fotke v percentách; orezaná, aby sa bod nedal vytiahnuť mimo obrázka. */
+const toPercent = (event: MouseEvent) => {
+    const rect = imageContainer.value!.getBoundingClientRect();
+    return {
+        x: clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100),
+        y: clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100),
+    };
+};
+
+/** Vzdialenosť bodu od úsečky ab (v pixeloch fotky). */
+const distanceToSegment = (p: Point, a: Point, b: Point) => {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const t = dx || dy ? clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy), 0, 1) : 0;
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+};
+
+/** Klik na čiaru vloží bod medzi susedné body, klik inde pridá bod na koniec cesty. */
 const handleSvgClick = (event: MouseEvent) => {
     if (!imageContainer.value) return;
+    const points = pathPoints.value || [];
+    const point = toPercent(event);
+    const click = toAbsolute(point, imageDimensions.value);
+    const abs = points.map(pt => toAbsolute(pt, imageDimensions.value));
 
-    const rect = imageContainer.value.getBoundingClientRect();
-    const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
-    const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
-
-    // Kontrola, či sme dostali rozumné čísla
-    if (isNaN(xPercent) || isNaN(yPercent)) return;
-
-    switch (props.mode) {
-        case 'start':
-            startPos.value = {x: xPercent, y: yPercent};
-            break;
-        case 'top':
-            topPos.value = {x: xPercent, y: yPercent};
-            break;
-        case 'path':
-            // V Nuxt 4/Vue 3.5 používame spread operátor na zachovanie reaktivity poľa
-            pathPoints.value = [...(pathPoints.value || []), {x: xPercent, y: yPercent}];
-            break;
+    let insertAt = points.length;
+    let nearest = pointRadius.value;
+    for (let i = 0; i < abs.length - 1; i++) {
+        const d = distanceToSegment(click, abs[i]!, abs[i + 1]!);
+        if (d < nearest) {
+            nearest = d;
+            insertAt = i + 1;
+        }
     }
+    pathPoints.value = [...points.slice(0, insertAt), point, ...points.slice(insertAt)];
+};
+
+const movePoint = (index: number, point: { x: number; y: number }) => {
+    pathPoints.value = (pathPoints.value || []).map((p, i) => (i === index ? point : p));
+};
+
+const removePoint = (index: number) => {
+    pathPoints.value = (pathPoints.value || []).filter((_, i) => i !== index);
+};
+
+// Pointer capture drží ťahanie na bode aj keď kurzor vyjde mimo neho
+const grabPoint = (event: PointerEvent) => {
+    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+};
+
+const dragPoint = (index: number, event: PointerEvent) => {
+    if ((event.currentTarget as Element).hasPointerCapture(event.pointerId)) {
+        movePoint(index, toPercent(event));
+    }
+};
+
+// Alternatíva ku gestám: šípky presúvajú (Shift = väčší krok), Delete odstráni
+const onPointKeydown = (index: number, event: KeyboardEvent) => {
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        removePoint(index);
+        return;
+    }
+    const step = event.shiftKey ? 1 : 0.2;
+    const delta: Record<string, [number, number]> = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+    };
+    const d = delta[event.key];
+    const p = pathPoints.value?.[index];
+    if (!d || !p) return;
+    event.preventDefault();
+    movePoint(index, {x: clamp(p.x + d[0], 0, 100), y: clamp(p.y + d[1], 0, 100)});
 };
 
 // Watch for imageUrl changes to reset dimensions and preload the image
