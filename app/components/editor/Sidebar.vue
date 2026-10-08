@@ -153,7 +153,6 @@
                         <UButton
                             block
                             label="Uložiť GPS a popis"
-                            :disabled="!isDev"
                             @click="saveGpsAndDescription"
                         />
                     </template>
@@ -254,22 +253,16 @@
 
             <SDivider class="my-6"/>
 
-            <UTooltip
-                :delay-duration="0"
-                text="Zatiaľ iba na skúšku"
-                :disabled="isDev"
+            <UButton
+                block
+                size="lg"
+                color="primary"
+                icon="i-heroicons-cloud-arrow-up"
+                :disabled="!name.trim()"
+                @click="$emit('save')"
             >
-                <UButton
-                    block
-                    size="lg"
-                    color="primary"
-                    icon="i-heroicons-cloud-arrow-up"
-                    :disabled="!isDev || !name.trim()"
-                    @click="$emit('save')"
-                >
-                    Uložiť zmeny
-                </UButton>
-            </UTooltip>
+                Uložiť zmeny
+            </UButton>
 
             <UModal
                 v-model:open="confirmDelete"
@@ -284,7 +277,6 @@
                     color="error"
                     variant="soft"
                     icon="i-heroicons-trash"
-                    :disabled="!isDev"
                 >
                     Zmazať cestu z databázy
                 </UButton>
@@ -322,7 +314,6 @@ import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue';
 import SDivider from "~/components/super/SDivider.vue";
 import {UModal} from '#components';
 
-const isDev = import.meta.dev
 type Grade = Database['public']['Tables']['grades']['Row'];
 
 defineProps<{

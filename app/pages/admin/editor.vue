@@ -41,6 +41,8 @@
     lang="ts"
 >
 import { reactive, ref, onMounted, watch, nextTick } from 'vue';
+
+definePageMeta({ middleware: 'editor' });
 import { useDebounceFn } from '@vueuse/core';
 import type { Database } from '~/types/database.types';
 

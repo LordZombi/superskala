@@ -115,7 +115,7 @@
                                             v-text="boulder.name"
                                         ></h2>
                                         <UButton
-                                            v-if="isDev"
+                                            v-if="user"
                                             :to="{ path: '/admin/editor', query: { area: area.id, sector: item.id, boulder: boulder.id } }"
                                             icon="i-heroicons-pencil"
                                             label="Upraviť"
@@ -210,7 +210,7 @@ definePageMeta({
 })
 
 // Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
-const isDev = import.meta.dev
+const user = useSupabaseUser()
 const route = useRoute()
 const {getAreaWithDetails} = useSupabase()
 const selectedClimbId = useState<string | null>('selectedClimbId')

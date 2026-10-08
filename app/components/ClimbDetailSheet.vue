@@ -162,7 +162,7 @@
                             />
                         </ULink>
                         <UButton
-                            v-if="isDev"
+                            v-if="user"
                             :to="{ path: '/admin/editor', query: { area: area?.id, sector: sector?.id, boulder: climb.boulder_id, climb: climb.id } }"
                             icon="i-heroicons-pencil"
                             label="Upraviť"
@@ -318,7 +318,7 @@ watch(isMinimized, (minimized) => {
 const route = useRoute()
 let openFullscreen = route.query.fullscreen !== undefined
 // Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
-const isDev = import.meta.dev
+const user = useSupabaseUser()
 
 watch(selectedClimbId, (id) => {
     isMinimized.value = false
