@@ -3,13 +3,13 @@
         <div class="absolute inset-0 flex flex-col lg:flex-row">
             <MapView
                 class="z-0 min-h-0 flex-1"
-                :points="sectorPoints"
+                :points="mapPoints"
                 :focus="mapFocus"
                 :focus-inset="isMobile && selectedClimbId ? windowHeight * 0.7 : 0"
                 :selected="boulderPoint"
                 permanent-labels
                 fit-to-points
-                @select="selectSector"
+                @select="selectPoint"
             />
 
             <section
@@ -359,6 +359,9 @@ watch(selectedClimbId, (climb) => {
 
 // Vybraný kameň sa na mape priblíži; kým nemá vlastné súradnice, poslúži jeho sektor
 const mapFocus = computed<MapFocus | null>(() => {
+    const climb = selectedClimb.value
+    if (climb?.lat && climb.lon) return {lat: climb.lat, lon: climb.lon, zoom: 18}
+
     const boulder = boulders.value[boulderIndex.value]
     if (boulder?.lat && boulder.lon) return {lat: boulder.lat, lon: boulder.lon, zoom: 18}
 
@@ -395,8 +398,24 @@ const openSectorFromQuery = async () => {
 
 watch(() => route.query.sector, openSectorFromQuery)
 
-const sectorPoints = computed<MapPoint[]>(() => sectors.value.flatMap(({id, lat, lon, name}) =>
-    lat && lon ? [{id, lat, lon, label: name}] : []))
+// Sektory, kamene a cesty, ktoré majú GPS; veľkosť bodu podľa úrovne rieši mapa
+const mapPoints = computed<MapPoint[]>(() => sectors.value.flatMap(sector => [
+    ...sector.lat && sector.lon ? [{id: sector.id, lat: sector.lat, lon: sector.lon, label: sector.name}] : [],
+    ...sector.boulders.flatMap(boulder => [
+        ...boulder.lat && boulder.lon ? [{id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const}] : [],
+        ...boulder.climbs.flatMap(climb =>
+            climb.lat && climb.lon ? [{id: climb.id, lat: climb.lat, lon: climb.lon, label: climb.name, kind: 'climb' as const}] : []),
+    ]),
+]))
+
+// Id bodu je id sektora, kameňa alebo cesty (UUID sa neopakujú); kameň otvorí svoju prvú cestu
+const selectPoint = (id: string) => {
+    const boulder = boulders.value.find(boulder => boulder.id === id)
+
+    if (boulder) selectedClimbId.value = boulder.climbs[0]!.id
+    else if (climbIds.value.includes(id)) selectedClimbId.value = id
+    else selectSector(id)
+}
 
 // Rovnaký formát posiela aj server pre náhľady odkazov (server/plugins/share-meta.ts)
 useHead({

@@ -41,6 +41,8 @@ export interface MapPoint {
     lat: number
     lon: number
     label: string
+    /** Úroveň bodu určuje veľkosť: sektor > kameň > cesta; bez nej je to sektor */
+    kind?: 'sector' | 'boulder' | 'climb'
 }
 
 const {points, permanentLabels = false, fitToPoints = false, focus = null, focusInset = 0, selected = null} = defineProps<{
@@ -119,12 +121,27 @@ const onLocationError = ({code}: L.ErrorEvent) => {
     })
 }
 
-// L.marker (na rozdiel od circleMarker) je fokusovateľný z klávesnice
-const icon = L.divIcon({
-    className: '',
-    html: '<span class="block size-4 rounded-full bg-emerald-500 ring-2 ring-white"></span>',
-    iconSize: [16, 16],
-})
+// L.marker (na rozdiel od circleMarker) je fokusovateľný z klávesnice.
+// Kameň a cesta sú menšie ako sektor, no klikacia plocha ostáva 24 px (WCAG 2.5.8)
+const icons = {
+    sector: L.divIcon({
+        className: '',
+        html: '<span class="block size-4 rounded-full bg-emerald-500 ring-2 ring-white"></span>',
+        iconSize: [16, 16],
+    }),
+    boulder: L.divIcon({
+        className: '',
+        html: '<span class="flex size-6 items-center justify-center"><span class="block size-3 rounded-full bg-emerald-500 ring-2 ring-white"></span></span>',
+        iconSize: [24, 24],
+    }),
+    climb: L.divIcon({
+        className: '',
+        html: '<span class="flex size-6 items-center justify-center"><span class="block size-2 rounded-full bg-emerald-500 ring-1 ring-white"></span></span>',
+        iconSize: [24, 24],
+    }),
+}
+// Menšie body ležia nad väčšími, aby sa dali trafiť aj tesne pri sektore
+const zIndexOffsets = {sector: 0, boulder: 100, climb: 200}
 
 const renderPoints = () => {
     if (!map) return
@@ -132,7 +149,10 @@ const renderPoints = () => {
     markers.clearLayers()
 
     points.forEach((point) => {
-        const marker = L.marker([point.lat, point.lon], {icon}).addTo(markers)
+        const kind = point.kind ?? 'sector'
+        const marker = L.marker([point.lat, point.lon], {icon: icons[kind], zIndexOffset: zIndexOffsets[kind]}).addTo(markers)
+        // Menovky kameňov a ciest sa ukážu len pri prejdení, trvalé by zahltili mapu
+        const isPermanent = permanentLabels && kind === 'sector'
 
         marker.getElement()?.setAttribute('aria-label', point.label)
         marker.on('click', () => emit('select', point.id))
@@ -145,9 +165,9 @@ const renderPoints = () => {
         })
         marker.bindTooltip(point.label, {
             // Trvalé menovky idú vedľa bodu, aby sa blízke sektory neprekrývali
-            direction: permanentLabels ? 'right' : 'top',
-            offset: permanentLabels ? [8, 0] : [0, -8],
-            permanent: permanentLabels,
+            direction: isPermanent ? 'right' : 'top',
+            offset: isPermanent ? [8, 0] : [0, -8],
+            permanent: isPermanent,
         })
     })
 
