@@ -1,6 +1,6 @@
 <template>
     <UButton
-        icon="i-lucide-arrow-up-narrow-wide"
+        :icon="sortByGrade ? 'i-lucide-arrow-up-narrow-wide' : 'i-lucide-arrow-up-down'"
         label="Podľa obtiažnosti"
         color="neutral"
         :variant="sortByGrade ? 'subtle' : 'outline'"
