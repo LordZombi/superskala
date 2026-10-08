@@ -6,6 +6,7 @@
                 :points="sectorPoints"
                 :focus="mapFocus"
                 :focus-inset="isMobile && selectedClimbId ? windowHeight * 0.7 : 0"
+                :selected="boulderPoint"
                 permanent-labels
                 fit-to-points
                 @select="selectSector"
@@ -294,6 +295,12 @@ const boulderIndex = computed(() => boulders.value.findIndex(boulder =>
 const selectedBoulder = computed(() => boulders.value[boulderIndex.value] ?? null)
 const selectedSector = computed(() => sectors.value.find(({boulders}) =>
     selectedBoulder.value && boulders.includes(selectedBoulder.value)) ?? null)
+// Bod vybraného kameňa na mape, ak má GPS
+const boulderPoint = computed<MapPoint | null>(() => {
+    const boulder = selectedBoulder.value
+
+    return boulder?.lat && boulder.lon ? {id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name} : null
+})
 const selectedClimb = computed(() =>
     selectedBoulder.value?.climbs.find(({id}) => id === selectedClimbId.value) ?? null)
 

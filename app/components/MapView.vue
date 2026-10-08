@@ -43,7 +43,7 @@ export interface MapPoint {
     label: string
 }
 
-const {points, permanentLabels = false, fitToPoints = false, focus = null, focusInset = 0} = defineProps<{
+const {points, permanentLabels = false, fitToPoints = false, focus = null, focusInset = 0, selected = null} = defineProps<{
     points: MapPoint[]
     permanentLabels?: boolean
     fitToPoints?: boolean
@@ -51,6 +51,8 @@ const {points, permanentLabels = false, fitToPoints = false, focus = null, focus
     focus?: MapFocus | null
     /** Koľko px mapy zospodu prekrýva panel – focus sa centruje do zvyšku */
     focusInset?: number
+    /** Vybraný kameň: zvýraznený bod s menovkou, len na pohľad (výber robí panel) */
+    selected?: MapPoint | null
 }>()
 
 const emit = defineEmits<{
@@ -191,6 +193,25 @@ const renderPin = () => {
     pinMarker.on('dragend', () => pinMarker && setPin(pinMarker.getLatLng()))
 }
 
+let selectedMarker: L.Marker | undefined
+const selectedIcon = L.divIcon({
+    className: '',
+    html: '<span class="block size-3 rounded-full bg-orange-500 ring-2 ring-white"></span>',
+    iconSize: [12, 12],
+})
+
+const renderSelected = () => {
+    selectedMarker?.remove()
+    selectedMarker = undefined
+    if (!map || !selected) return
+
+    // Bez fokusu z klávesnice a bez kliku: kameň sa vyberá v paneli, bod ho len ukazuje na mape.
+    // Kameň je menší ako bod sektora a jeho menovka je vľavo (menovka sektora je vpravo), aby sa blízke body neprekrývali
+    selectedMarker = L.marker([selected.lat, selected.lon], {icon: selectedIcon, keyboard: false, interactive: false, zIndexOffset: 500})
+        .bindTooltip(selected.label, {permanent: true, direction: 'left', offset: [-10, 0]})
+        .addTo(map)
+}
+
 const reducedMotion = usePreferredReducedMotion()
 
 // 'post': výber cesty zároveň mení veľkosť mapy, rátať treba až s novou
@@ -233,12 +254,14 @@ onMounted(() => {
     })
     renderPoints()
     renderPin()
+    renderSelected()
     // Mapa v editore vzniká až s už nastaveným focusom, watch by ho nezachytil
     if (focus) applyFocus()
 })
 
 watch(() => points, renderPoints)
 watch(pin, renderPin)
+watch(() => selected, renderSelected)
 
 // Mapa mení veľkosť pri zmenšení panela oblasti, Leaflet si to sám nevšimne.
 // Bez posunu, aby výrez ostal ukotvený hore a neskryl sa za spodný panel
