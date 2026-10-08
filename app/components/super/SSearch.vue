@@ -124,7 +124,9 @@ const MAX_RESULTS = 20
 const {getSearchIndex} = useSupabase()
 // Index prežije zatvorenie hľadania, takže výsledky sú hneď; pri každom otvorení sa na pozadí obnoví
 const index = useState<SearchItem[] | null>('searchIndex', () => null)
-const history = useLocalStorage('superskala-search', {queries: [] as string[], visited: [] as SearchItem[]})
+// flush: 'sync' – zápis po kliknutí na výsledok musí prebehnúť hneď; s predvoleným odloženým zápisom ho zahodí zatvorenie hľadania
+// (SSearch sa odmontuje skôr, než sa zápis stihne), takže história ostávala prázdna
+const history = useLocalStorage('superskala-search', {queries: [] as string[], visited: [] as SearchItem[]}, {flush: 'sync'})
 
 const query = ref('')
 const debouncedQuery = refDebounced(query, 200)
