@@ -185,12 +185,11 @@
                             />
                         </div>
                     </div>
-                    <p
+                    <div
                         v-if="climb.description"
-                        :class="['text-slate-600 text-sm leading-relaxed', minimizedHidden]"
-                    >
-                        {{ climb.description }}
-                    </p>
+                        :class="['rich-text text-slate-600 text-sm leading-relaxed', minimizedHidden]"
+                        v-html="sanitize(climb.description)"
+                    />
                 </div>
 
                 <!-- Na celej obrazovke ostáva pod fotkou len hlavička cesty -->
@@ -248,6 +247,7 @@
     lang="ts"
 >
 import {computed, ref, useTemplateRef, watch} from 'vue'
+import {useSafeHtml} from '~/composables/useSafeHtml'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import SDivider from "~/components/super/SDivider.vue";
 import SShareButton from "~/components/super/SShareButton.vue";
@@ -270,6 +270,7 @@ const emit = defineEmits<{
     selectSector: [id: string]
 }>()
 
+const {sanitize} = useSafeHtml()
 const selectedClimbId = useState<string | null>('selectedClimbId')
 
 const go = (id?: string | null) => {

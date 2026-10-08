@@ -17,3 +17,29 @@
 button {
     @apply hover:cursor-pointer;
 }
+
+/* Popisky z databázy (v-html): Tailwind preflight vynuluje odkazy, odseky aj tučné písmo */
+.rich-text a {
+    @apply text-primary underline;
+}
+
+.rich-text p + p {
+    @apply mt-2;
+}
+
+.rich-text strong,
+.rich-text b {
+    @apply font-semibold;
+}
+
+.rich-text :is(ul, ol) {
+    @apply pl-5;
+}
+
+.rich-text ul {
+    @apply list-disc;
+}
+
+.rich-text ol {
+    @apply list-decimal;
+}

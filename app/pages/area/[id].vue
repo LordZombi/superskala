@@ -56,12 +56,11 @@
                             {{ plural(sectors.length, ['sektor', 'sektory', 'sektorov']) }} •
                             {{ plural(climbCount, ['cesta', 'cesty', 'ciest']) }}
                         </p>
-                        <p
+                        <div
                             v-if="area.description"
-                            :class="['text-slate-600 text-sm leading-relaxed', minimizedHidden]"
-                        >
-                            {{ area.description }}
-                        </p>
+                            :class="['rich-text text-slate-600 text-sm leading-relaxed', minimizedHidden]"
+                            v-html="sanitize(area.description)"
+                        />
                     </div>
 
                     <SDivider :class="minimizedHidden"/>
@@ -87,12 +86,11 @@
 
                         <template #body="{ item }">
                             <div class="space-y-4">
-                                <p
+                                <div
                                     v-if="item.description"
-                                    class="text-slate-600 text-sm leading-relaxed"
-                                >
-                                    {{ item.description }}
-                                </p>
+                                    class="rich-text text-slate-600 text-sm leading-relaxed"
+                                    v-html="sanitize(item.description)"
+                                />
 
                                 <div
                                     v-for="boulder in groupsOf(item)"
@@ -202,6 +200,7 @@ import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
 import SSortChip from '~/components/super/SSortChip.vue'
 import {useOfflineArea} from '~/composables/useOfflineArea'
+import {useSafeHtml} from '~/composables/useSafeHtml'
 import {useSheetSwipe} from '~/composables/useSheetSwipe'
 import {useSupabase} from '~/composables/useSupabase'
 
@@ -213,6 +212,7 @@ definePageMeta({
 const user = useSupabaseUser()
 const route = useRoute()
 const {getAreaWithDetails} = useSupabase()
+const {sanitize} = useSafeHtml()
 const selectedClimbId = useState<string | null>('selectedClimbId')
 
 // Vybraná cesta žije aj v URL (?climb=), aby sa dal zdieľať odkaz priamo na ňu
