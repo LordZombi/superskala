@@ -39,6 +39,24 @@ const writeSaved = (saved: Record<string, string>) => {
     }
 }
 
+// Na mobile (slabý signál, zdieľaná IP operátora → limit mapy.cz, HTTP 429) občas zlyhá aj stiahnutie, ktoré by o chvíľu prešlo
+const ATTEMPTS = 3
+const RETRY_DELAY_MS = 600
+
+const download = async (url: string) => {
+    for (let attempt = 1; ; attempt++) {
+        const status = await fetch(url).then(response => response.ok ? 0 : response.status, () => -1)
+        if (!status) return true
+
+        if (attempt === ATTEMPTS) {
+            console.warn(`Offline uloženie: ${url} zlyhalo (${status > 0 ? status : 'sieť'})`)
+            return false
+        }
+
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt))
+    }
+}
+
 const tileX = (lon: number, z: number) => Math.floor((lon + 180) / 360 * 2 ** z)
 const tileY = (lat: number, z: number) => {
     const rad = lat * Math.PI / 180
@@ -110,8 +128,7 @@ export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
         const worker = async () => {
             for (let url = queue.shift(); url; url = queue.shift()) {
                 // Odpoveď uloží service worker (runtimeCaching), stačí ju stiahnuť
-                const ok = await fetch(url).then(response => response.ok, () => false)
-                if (!ok) failed.value++
+                if (!await download(url)) failed.value++
                 progress.value = ++done / total
             }
         }
