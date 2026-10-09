@@ -24,6 +24,17 @@
                             />
                             <div class="flex-none">
                                 <UButton
+                                    :to="appLinks.area || undefined"
+                                    :disabled="!appLinks.area"
+                                    target="_blank"
+                                    icon="i-heroicons-arrow-top-right-on-square"
+                                    color="neutral"
+                                    variant="soft"
+                                    aria-label="Otvoriť oblasť v appke (nové okno)"
+                                />
+                            </div>
+                            <div class="flex-none">
+                                <UButton
                                     icon="i-heroicons-plus"
                                     color="neutral"
                                     variant="soft"
@@ -44,6 +55,17 @@
                                 :disabled="!areaId"
                                 class="flex-1"
                             />
+                            <div class="flex-none">
+                                <UButton
+                                    :to="appLinks.sector || undefined"
+                                    :disabled="!appLinks.sector"
+                                    target="_blank"
+                                    icon="i-heroicons-arrow-top-right-on-square"
+                                    color="neutral"
+                                    variant="soft"
+                                    aria-label="Otvoriť sektor v appke (nové okno)"
+                                />
+                            </div>
                             <div class="flex-none">
                                 <UButton
                                     icon="i-heroicons-plus"
@@ -69,6 +91,17 @@
                             />
                             <div class="flex-none">
                                 <UButton
+                                    :to="appLinks.boulder || undefined"
+                                    :disabled="!appLinks.boulder"
+                                    target="_blank"
+                                    icon="i-heroicons-arrow-top-right-on-square"
+                                    color="neutral"
+                                    variant="soft"
+                                    aria-label="Otvoriť kameň v appke (nové okno)"
+                                />
+                            </div>
+                            <div class="flex-none">
+                                <UButton
                                     icon="i-heroicons-plus"
                                     color="neutral"
                                     variant="soft"
@@ -90,6 +123,17 @@
                                 :disabled="!boulderId"
                                 class="flex-1"
                             />
+                            <div class="flex-none">
+                                <UButton
+                                    :to="appLinks.climb || undefined"
+                                    :disabled="!appLinks.climb"
+                                    target="_blank"
+                                    icon="i-heroicons-arrow-top-right-on-square"
+                                    color="neutral"
+                                    variant="soft"
+                                    aria-label="Otvoriť cestu v appke (nové okno)"
+                                />
+                            </div>
                             <div class="flex-none">
                                 <UButton
                                     icon="i-heroicons-plus"
@@ -481,6 +525,14 @@ watch(climbId, (id) => {
         pathPoints.value = parsePathString(currentClimb.topo_path);
     }
 });
+
+// Odkazy do verejnej appky, nech sa výsledok dá rovno pozrieť; kameň vedie na svoju prvú cestu
+const appLinks = computed(() => ({
+    area: areaId.value && `/area/${areaId.value}`,
+    sector: areaId.value && sectorId.value && `/area/${areaId.value}?sector=${sectorId.value}`,
+    boulder: areaId.value && climbs.value[0] && `/area/${areaId.value}?climb=${climbs.value[0].id}`,
+    climb: areaId.value && climbId.value && `/area/${areaId.value}?climb=${climbId.value}`,
+}));
 
 // --- GPS a popis: špendlík na mape a text pre vybranú oblasť, sektor alebo kameň ---
 type GpsTarget = 'area' | 'sector' | 'boulder';
