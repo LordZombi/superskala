@@ -52,8 +52,6 @@
                     active-variant="soft"
                     class="rounded-full"
                 />
-
-                <UColorModeButton/>
             </div>
         </div>
 
