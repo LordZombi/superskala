@@ -107,6 +107,7 @@
                                             v-if="boulder.image_url"
                                             alt=""
                                             :src="boulder.image_url"
+                                            crossorigin="anonymous"
                                             loading="lazy"
                                             class="size-12 shrink-0 rounded-lg object-cover"
                                         />

@@ -16,6 +16,7 @@
             <img
                 :alt="alt"
                 :src="src"
+                crossorigin="anonymous"
                 :class="contain ? 'w-full h-full object-contain' : 'w-full aspect-4/3 max-h-[40vh] object-cover'"
                 @load="onImageLoad"
             />

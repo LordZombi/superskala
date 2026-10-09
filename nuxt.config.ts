@@ -133,14 +133,16 @@ export default defineNuxtConfig({
                     urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/,
                     handler: 'CacheFirst',
                     options: {
-                        cacheName: 'boulder-images',
+                        // v2: v pôvodnej cache sú nepriehľadné (no-cors) odpovede z <img>, ktoré fetch() pri sťahovaní oblasti odmietne
+                        // a s crossorigin img by ich zasa nenačítal; fotky sa teraz berú vždy s CORS
+                        cacheName: 'boulder-images-v2',
                         // Fotky uložených oblastí musia vydržať aj sezónu bez návštevy
                         expiration: {
                             maxEntries: 2000,
                             maxAgeSeconds: 60 * 60 * 24 * 365
                         },
                         cacheableResponse: {
-                            statuses: [0, 200]
+                            statuses: [200]
                         }
                     }
                 },
