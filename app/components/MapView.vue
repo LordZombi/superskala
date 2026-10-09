@@ -305,6 +305,12 @@ const selectedIcon = L.divIcon({
     iconSize: [12, 12],
 })
 
+const selectedSectorIcon = L.divIcon({
+    className: '',
+    html: '<span class="block size-5 rounded-full bg-orange-500 ring-2 ring-white"></span>',
+    iconSize: [20, 20],
+})
+
 const renderSelected = () => {
     selectedMarker?.remove()
     selectedMarker = undefined
@@ -312,9 +318,12 @@ const renderSelected = () => {
 
     // Bez fokusu z klávesnice a bez kliku: kameň sa vyberá v paneli, bod ho len ukazuje na mape.
     // Kameň je menší ako bod sektora a jeho menovka je vľavo (menovka sektora je vpravo), aby sa blízke body neprekrývali
-    selectedMarker = L.marker([selected.lat, selected.lon], {icon: selectedIcon, keyboard: false, interactive: false, zIndexOffset: 500})
-        .bindTooltip(selected.label, {permanent: true, direction: 'left', offset: [-10, 0]})
+    const isSector = (selected.kind ?? 'sector') === 'sector'
+
+    selectedMarker = L.marker([selected.lat, selected.lon], {icon: isSector ? selectedSectorIcon : selectedIcon, keyboard: false, interactive: false, zIndexOffset: 500})
         .addTo(map)
+    // Menovku sektora už má jeho vlastný bod
+    if (!isSector) selectedMarker.bindTooltip(selected.label, {permanent: true, direction: 'left', offset: [-10, 0]})
 }
 
 const reducedMotion = usePreferredReducedMotion()

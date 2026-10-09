@@ -6,7 +6,7 @@
                 :points="mapPoints"
                 :focus="mapFocus"
                 :focus-inset="isMobile && selectedClimbId ? windowHeight * 0.7 : 0"
-                :selected="boulderPoint"
+                :selected="selectedPoint"
                 permanent-labels
                 fit-to-points
                 deep-zoom
@@ -328,7 +328,13 @@ const selectedSector = computed(() => sectors.value.find(({boulders}) =>
 const boulderPoint = computed<MapPoint | null>(() => {
     const boulder = selectedBoulder.value
 
-    return boulder?.lat && boulder.lon ? {id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name} : null
+    return boulder?.lat && boulder.lon ? {id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const} : null
+})
+// Kým nie je vybraný kameň s GPS, orange bod ukazuje sektor vybranej cesty, inak otvorený sektor
+const selectedPoint = computed<MapPoint | null>(() => {
+    const sector = selectedSector.value ?? sectors.value.find(({id}) => id === openSectors.value[0])
+
+    return boulderPoint.value ?? (sector?.lat && sector.lon ? {id: sector.id, lat: sector.lat, lon: sector.lon, label: sector.name} : null)
 })
 const selectedClimb = computed(() =>
     selectedBoulder.value?.climbs.find(({id}) => id === selectedClimbId.value) ?? null)
