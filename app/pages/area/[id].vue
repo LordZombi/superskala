@@ -15,7 +15,7 @@
             <section
                 ref="panel"
                 class="min-h-0 overflow-y-auto overscroll-contain bg-white p-4 space-y-4 transition-[height] duration-300 ease-out lg:flex-none lg:w-[30vw] lg:min-w-120"
-                :class="[isMinimized ? 'max-lg:h-20 max-lg:overflow-hidden' : 'max-lg:h-[65%]', {'max-lg:hidden': selectedClimbId}]"
+                :class="[isMinimized ? 'max-lg:h-20 max-lg:overflow-hidden' : 'max-lg:h-[65%]', {'max-lg:invisible max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0': selectedClimbId}]"
                 aria-labelledby="area-title"
             >
                 <template v-if="area">
@@ -211,6 +211,7 @@ definePageMeta({
 // Úpravy sa dajú ukladať len lokálne, rovnako ako v editore
 const user = useSupabaseUser()
 const route = useRoute()
+const router = useRouter()
 const {getAreaWithDetails} = useSupabase()
 const {sanitize} = useSafeHtml()
 const selectedClimbId = useState<string | null>('selectedClimbId')
@@ -218,8 +219,27 @@ const selectedClimbId = useState<string | null>('selectedClimbId')
 // Vybraná cesta žije aj v URL (?climb=), aby sa dal zdieľať odkaz priamo na ňu
 selectedClimbId.value = typeof route.query.climb === 'string' ? route.query.climb : null
 
-const stopQuerySync = watch(selectedClimbId, climb =>
-    navigateTo({query: {...route.query, climb: climb ?? undefined}}, {replace: true}))
+// Otvorenie detailu pridá záznam do histórie, aby tlačidlo Späť vrátilo na zoznam; prepínanie medzi cestami ho len prepisuje
+let openedByPush = false
+
+const stopQuerySync = watch(selectedClimbId, (climb, previous) => {
+    // URL už sedí (napr. po tlačidle Späť), nič nemeníme
+    if ((route.query.climb ?? null) === climb) {
+        openedByPush &&= Boolean(climb)
+        return
+    }
+
+    if (!climb && openedByPush) {
+        openedByPush = false
+        router.back()
+        return
+    }
+
+    const push = Boolean(climb && !previous)
+
+    openedByPush = push || openedByPush && Boolean(climb)
+    navigateTo({query: {...route.query, climb: climb ?? undefined}}, {replace: !push})
+})
 
 // Opačný smer: odkaz z hľadania na inú cestu v tej istej oblasti stránku neprekreslí
 watch(() => route.query.climb, climb => selectedClimbId.value = typeof climb === 'string' ? climb : null)
