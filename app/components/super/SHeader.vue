@@ -32,7 +32,7 @@
 
                 <UButton
                     to="/"
-                    exact
+                    :active="isMapShown"
                     icon="i-heroicons-map"
                     aria-label="Mapa"
                     color="neutral"
@@ -75,7 +75,7 @@
     setup
     lang="ts"
 >
-import {nextTick, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import SSearch from '~/components/super/SSearch.vue'
 
 const route = useRoute()
@@ -88,6 +88,9 @@ const closeSearch = async () => {
     // Cez id: koreň UButton nie je samotný <button>, $el.focus() preto padal
     document.getElementById('search-toggle')?.focus()
 }
+
+// Mapu vidno aj na stránke oblasti, preto je ikona aktívna aj tam
+const isMapShown = computed(() => route.path === '/' || route.path.startsWith('/area/'))
 
 watch(() => route.fullPath, () => isSearchOpen.value = false)
 </script>
