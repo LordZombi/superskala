@@ -2,12 +2,31 @@
     setup
     lang="ts"
 >
+import {onMounted, ref} from "vue";
 import SDivider from "~/components/super/SDivider.vue";
+import {useSupabase} from "~/composables/useSupabase";
+
+const {getAreasForMap} = useSupabase();
+const areas = ref<{ id: string, name: string }[]>([]);
+
+onMounted(async () => {
+    const all = await getAreasForMap();
+
+    // Tabuľka oblastí nemá krajinu, preto Slovensko poznáme podľa súradníc (približný obdĺžnik okolo hraníc)
+    areas.value = all
+        .filter((area) => {
+            const {lat, lon} = area.lat && area.lon ? area : area.sectors.find(sector => sector.lat && sector.lon) ?? {};
+
+            return lat && lon && lat >= 47.7 && lat <= 49.65 && lon >= 16.8 && lon <= 22.6;
+        })
+        .map(({id, name}) => ({id, name}))
+        .sort((a, b) => a.name.localeCompare(b.name, "sk"));
+});
 </script>
 
 <template>
     <UContainer
-        class="py-24 max-w-3xl"
+        class="py-12 max-w-4xl"
     >
         <div
             class="space-y-12"
@@ -15,18 +34,68 @@ import SDivider from "~/components/super/SDivider.vue";
             <section
                 class="space-y-4"
             >
-                <h1
-                    class="text-5xl font-bold"
+                <div
+                    class="flex items-center gap-4"
                 >
-                    O projekte
-                </h1>
+                    <!-- dekoratívne: názov hneď vedľa ho už hovorí; maska preberá farbu textu a orezané logo lícuje s okrajom -->
+                    <span
+                        aria-hidden="true"
+                        class="size-12 shrink-0 bg-current mask-[url(/superskala-full.svg)] mask-contain mask-no-repeat mask-center"
+                    ></span>
+                    <h1
+                        class="text-5xl font-bold"
+                    >
+                        Superskaly
+                    </h1>
+                </div>
                 <p
-                    class="text-lg text-neutral-600 leading-relaxed"
+                    class="text-xl text-neutral-600 leading-relaxed"
                 >
-                    Superskaly sú digitálnym sprievodcom pre moderného bouldristu. Naším cieľom je zmapovať slovenské
-                    skaly s milimetrovou presnosťou a priniesť topos, ktoré sa dajú čítať aj na ostrom slnku s magnéziom
-                    na prstoch.
+                    Apka je <strong class="text-primary-700">zadarmo</strong> a vždy bude.
                 </p>
+                <p
+                    class="text-neutral-600 leading-relaxed"
+                >
+                    Je to naše <strong class="text-primary-700">poďakovanie</strong> prvolezcom, ktorí cesty
+                    objavili a zdokumentovali, aj všetkým, čo sa o skaly a lesy okolo nich starajú.
+                </p>
+                <p
+                    class="text-neutral-600 leading-relaxed"
+                >
+                    <a href="/"><strong>Superskaly</strong></a> sú digitálnym sprievodcom pre moderného
+                    bouldristu. Naším cieľom je zmapovať slovenské skaly s milimetrovou presnosťou a priniesť topos,
+                    ktoré sa dajú čítať aj na ostrom slnku s magnéziom na prstoch.
+                </p>
+            </section>
+
+            <section
+                v-if="areas.length"
+                class="space-y-4"
+            >
+                <h2
+                    class="text-3xl font-black text-neutral-900"
+                >
+                    Zmapované oblasti
+                </h2>
+                <ul
+                    class="grid gap-4 sm:grid-cols-2"
+                >
+                    <li
+                        v-for="area in areas"
+                        :key="area.id"
+                    >
+                        <NuxtLink
+                            :to="`/area/${area.id}`"
+                            class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-neutral-100 border border-neutral-200 font-bold text-neutral-900 hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-primary-700"
+                        >
+                            {{ area.name }}
+                            <UIcon
+                                name="i-heroicons-arrow-right"
+                                class="w-5 h-5 text-neutral-500 shrink-0"
+                            />
+                        </NuxtLink>
+                    </li>
+                </ul>
             </section>
 
             <section
@@ -35,12 +104,13 @@ import SDivider from "~/components/super/SDivider.vue";
                 <h2
                     class="text-3xl font-black text-neutral-900"
                 >
-                    Odkiaľ sú topá
+                    Odkiaľ sú topá a legendy
                 </h2>
                 <p
                     class="text-neutral-600 leading-relaxed"
                 >
-                    Topá a popisy ciest pochádzajú zo sprievodcov portálu boulder.sk. Ďakujeme!
+                    Topá a popisy ciest pochádzajú zo sprievodcov portálu boulder.sk, mýty a legendy o prelezoch zas
+                    z ústneho podania lezcov. Ďakujeme!
                 </p>
                 <ULink
                     to="https://boulder.sk/"
@@ -151,6 +221,14 @@ import SDivider from "~/components/super/SDivider.vue";
                             class="underline"
                         >skaly@superdeveloper.sk</ULink>
                     </p>
+                    <UButton
+                        to="/admin/editor"
+                        icon="i-heroicons-pencil"
+                        label="Topo editor"
+                        color="neutral"
+                        variant="soft"
+                        class="mt-3 w-auto"
+                    />
                 </div>
                 <div
                     class="flex items-center gap-2"

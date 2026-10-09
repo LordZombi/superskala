@@ -7,6 +7,10 @@
                 to="/"
                 class="flex items-center gap-2 group"
             >
+                <span
+                    aria-hidden="true"
+                    class="size-6 shrink-0 bg-current mask-[url(/superskala-full.svg)] mask-contain mask-no-repeat mask-center"
+                ></span>
                 <h1 class="text-xl font-bold">
                     Superskaly
                 </h1>
@@ -18,18 +22,22 @@
                     icon="i-heroicons-magnifying-glass"
                     aria-label="Hľadať"
                     :aria-expanded="isSearchOpen"
+                    :active="isSearchOpen"
                     color="neutral"
                     variant="ghost"
+                    active-variant="soft"
                     class="rounded-full"
                     @click="isSearchOpen = !isSearchOpen"
                 />
 
                 <UButton
                     to="/"
+                    exact
                     icon="i-heroicons-map"
                     aria-label="Mapa"
                     color="neutral"
                     variant="ghost"
+                    active-variant="soft"
                     class="rounded-full"
                 />
 
@@ -48,6 +56,7 @@
                     aria-label="O projekte"
                     color="neutral"
                     variant="ghost"
+                    active-variant="soft"
                     class="rounded-full"
                 />
 
