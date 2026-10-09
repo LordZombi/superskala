@@ -11,6 +11,36 @@ export interface SearchItem {
     to: string
 }
 
+// Poslednú úspešnú odpoveď si držíme aj v IndexedDB: bez siete (alebo keď prehliadač vymaže cache service workera) appka nezostane prázdna
+const openSnapshots = () => new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('superskala', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('snapshots');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+});
+
+const readSnapshot = async <T>(key: string): Promise<T | null> => {
+    try {
+        const store = (await openSnapshots()).transaction('snapshots').objectStore('snapshots');
+
+        return await new Promise<T | null>((resolve, reject) => {
+            const request = store.get(key);
+            request.onsuccess = () => resolve(request.result ?? null);
+            request.onerror = () => reject(request.error);
+        });
+    } catch {
+        return null;
+    }
+};
+
+const writeSnapshot = async (key: string, value: unknown) => {
+    try {
+        (await openSnapshots()).transaction('snapshots', 'readwrite').objectStore('snapshots').put(value, key);
+    } catch {
+        // Bez IndexedDB ostane len cache service workera
+    }
+};
+
 export function useSupabase() {
     const client = useSupabaseClient<Database>();
     const sectors = ref<any>([]); // Keep existing for now, but consider typing
@@ -54,8 +84,10 @@ export function useSupabase() {
         if (err) {
             error.value = err.message;
             console.error('Error fetching areas for map:', err);
-            return [];
+            return await readSnapshot<typeof data>('areas-map') ?? [];
         }
+
+        writeSnapshot('areas-map', data);
 
         return data || [];
     }
@@ -66,29 +98,33 @@ export function useSupabase() {
     async function getSearchIndex(): Promise<SearchItem[]> {
         const PAGE = 1000; // Supabase returns at most 1000 rows per request
         const climbs = [];
+        let isFailed = false;
 
         for (let from = 0; ; from += PAGE) {
-            const {data} = await client
+            const {data, error: err} = await client
                 .from('climbs')
                 .select('id, name, grade:grades(font), boulder:boulders(sector:sectors(area:areas(id, name)))')
                 .order('name')
                 .range(from, from + PAGE - 1);
 
+            isFailed ||= !!err;
             climbs.push(...data ?? []);
             if ((data?.length ?? 0) < PAGE) break;
         }
 
-        const {data: sectors} = await client
+        const {data: sectors, error: sectorsError} = await client
             .from('sectors')
             .select('id, name, area:areas(id, name)')
             .order('name');
 
-        const {data: areas} = await client
+        const {data: areas, error: areasError} = await client
             .from('areas')
             .select('id, name')
             .order('name');
 
-        return [
+        isFailed ||= !!sectorsError || !!areasError;
+
+        const items: SearchItem[] = [
             ...(areas ?? []).map((area): SearchItem => ({
                 type: 'area',
                 id: area.id,
@@ -117,6 +153,12 @@ export function useSupabase() {
                 }] : [];
             }),
         ];
+
+        if (isFailed) return await readSnapshot<SearchItem[]>('search-index') ?? items;
+
+        writeSnapshot('search-index', items);
+
+        return items;
     }
 
     /**
@@ -137,8 +179,10 @@ export function useSupabase() {
         if (err) {
             error.value = err.message;
             console.error('Error fetching area:', err);
-            return null;
+            return await readSnapshot<typeof data>(`area:${areaId}`);
         }
+
+        if (data) writeSnapshot(`area:${areaId}`, data);
 
         return data;
     }
