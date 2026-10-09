@@ -15,7 +15,7 @@
         >
             <img
                 :alt="alt"
-                :src="imageUrl"
+                :src="src"
                 :class="contain ? 'w-full h-full object-contain' : 'w-full aspect-4/3 max-h-[40vh] object-cover'"
                 @load="onImageLoad"
             />
@@ -60,7 +60,8 @@
     setup
     lang="ts"
 >
-import {computed, ref, useTemplateRef, watch} from 'vue'
+import {computed, onBeforeUnmount, ref, useTemplateRef, watch} from 'vue'
+import {readSnapshot} from '~/composables/useSupabase'
 
 const {imageUrl, climbs, selectedId, alt = '', contain = false} = defineProps<{
     imageUrl: string
@@ -104,6 +105,16 @@ let start = {scale: 1, x: 0, y: 0, px: 0, py: 0, distance: 1}
 let isPinching = false
 
 const resetZoom = () => zoom.value = {scale: 1, x: 0, y: 0}
+
+// Uložená fotka (offline) má prednosť pred sieťou; bez nej sa berie URL
+const src = ref<string>()
+watch(() => imageUrl, async (url) => {
+    const photo = await readSnapshot<Blob>(`photo:${url}`)
+
+    if (src.value?.startsWith('blob:')) URL.revokeObjectURL(src.value)
+    src.value = photo ? URL.createObjectURL(photo) : url
+}, {immediate: true})
+onBeforeUnmount(() => src.value?.startsWith('blob:') && URL.revokeObjectURL(src.value))
 
 watch(() => [imageUrl, contain], resetZoom)
 

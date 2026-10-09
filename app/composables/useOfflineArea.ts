@@ -1,4 +1,5 @@
 import {computed, ref, toValue, type MaybeRefOrGetter} from 'vue'
+import {writeSnapshot} from '~/composables/useSupabase'
 
 /** Šablóna dlaždíc pre Leaflet; offline uloženie musí sťahovať presne tie isté URL, inak ich service worker nenájde */
 export const mapTileUrl = (apiKey: string) =>
@@ -43,13 +44,15 @@ const writeSaved = (saved: Record<string, string>) => {
 const ATTEMPTS = 3
 const RETRY_DELAY_MS = 600
 
-const download = async (url: string) => {
+// Fotka sa ukladá priamo do IndexedDB (cache service workera ju mohla minúť, nikto to nekontroloval); dlaždice ostávajú v cache
+const download = async (url: string, isPhoto = false) => {
     for (let attempt = 1; ; attempt++) {
-        const status = await fetch(url).then(response => response.ok ? 0 : response.status, () => -1)
-        if (!status) return true
+        // reload: obnovenie uloženej oblasti musí vziať aj fotku, ktorá sa pod rovnakým názvom v úložisku vymenila
+        const response = await fetch(url, isPhoto ? {cache: 'reload'} : undefined).catch(() => null)
+        if (response?.ok && (!isPhoto || await writeSnapshot(`photo:${url}`, await response.blob()))) return true
 
         if (attempt === ATTEMPTS) {
-            console.warn(`Offline uloženie: ${url} zlyhalo (${status > 0 ? status : 'sieť'})`)
+            console.warn(`Offline uloženie: ${url} zlyhalo (${response?.ok ? 'úložisko' : response?.status ?? 'sieť'})`)
             return false
         }
 
@@ -91,7 +94,7 @@ const tileUrls = (template: string, points: { lat: number, lon: number }[]) => {
 }
 
 /**
- * Stiahne fotky kameňov a mapové dlaždice oblasti, aby ich service worker mal v cache aj bez signálu.
+ * Stiahne fotky kameňov (do IndexedDB) a mapové dlaždice oblasti (cache service workera), aby boli aj bez signálu.
  * Samotné dáta oblasti sú v cache už po jej otvorení (supabase-data v nuxt.config).
  */
 export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
@@ -118,6 +121,7 @@ export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
         const points = [...current.sectors, ...boulders].flatMap(({lat, lon}) =>
             lat && lon ? [{lat, lon}] : [])
         const images = boulders.flatMap(boulder => boulder.image_url ?? [])
+        const photos = new Set(images)
         const queue = [...new Set([...images, ...tileUrls(mapTileUrl(config.public.mapyApiKey), points)])]
         const total = queue.length
 
@@ -127,8 +131,7 @@ export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
         let done = 0
         const worker = async () => {
             for (let url = queue.shift(); url; url = queue.shift()) {
-                // Odpoveď uloží service worker (runtimeCaching), stačí ju stiahnuť
-                if (!await download(url)) failed.value++
+                if (!await download(url, photos.has(url))) failed.value++
                 progress.value = ++done / total
             }
         }

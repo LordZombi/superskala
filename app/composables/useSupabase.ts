@@ -19,7 +19,7 @@ const openSnapshots = () => new Promise<IDBDatabase>((resolve, reject) => {
     request.onerror = () => reject(request.error);
 });
 
-const readSnapshot = async <T>(key: string): Promise<T | null> => {
+export const readSnapshot = async <T>(key: string): Promise<T | null> => {
     try {
         const store = (await openSnapshots()).transaction('snapshots').objectStore('snapshots');
 
@@ -33,11 +33,19 @@ const readSnapshot = async <T>(key: string): Promise<T | null> => {
     }
 };
 
-const writeSnapshot = async (key: string, value: unknown) => {
+/** Vráti true, až keď je zápis v úložisku; bez IndexedDB ostane len cache service workera */
+export const writeSnapshot = async (key: string, value: unknown) => {
     try {
-        (await openSnapshots()).transaction('snapshots', 'readwrite').objectStore('snapshots').put(value, key);
+        const transaction = (await openSnapshots()).transaction('snapshots', 'readwrite');
+
+        transaction.objectStore('snapshots').put(value, key);
+
+        return await new Promise<boolean>((resolve, reject) => {
+            transaction.oncomplete = () => resolve(true);
+            transaction.onerror = transaction.onabort = () => reject(transaction.error);
+        });
     } catch {
-        // Bez IndexedDB ostane len cache service workera
+        return false;
     }
 };
 
