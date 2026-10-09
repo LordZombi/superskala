@@ -1,5 +1,7 @@
 <template>
     <header class="relative z-30">
+        <SInstallBanner/>
+
         <div
             class="flex justify-between items-center pointer-events-auto bg-white px-4 py-2"
         >
@@ -42,15 +44,6 @@
                 />
 
                 <UButton
-                    to="/admin/editor"
-                    icon="i-heroicons-pencil"
-                    aria-label="Topo editor"
-                    color="neutral"
-                    variant="ghost"
-                    class="rounded-full"
-                />
-
-                <UButton
                     to="/info"
                     icon="i-heroicons-information-circle"
                     aria-label="O projekte"
@@ -76,6 +69,7 @@
     lang="ts"
 >
 import {computed, nextTick, ref, watch} from 'vue'
+import SInstallBanner from '~/components/super/SInstallBanner.vue'
 import SSearch from '~/components/super/SSearch.vue'
 
 const route = useRoute()
