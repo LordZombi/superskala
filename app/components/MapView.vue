@@ -45,10 +45,12 @@ export interface MapPoint {
     kind?: 'sector' | 'boulder' | 'climb'
 }
 
-const {points, permanentLabels = false, fitToPoints = false, focus = null, focusInset = 0, selected = null} = defineProps<{
+const {points, permanentLabels = false, fitToPoints = false, keepView = false, focus = null, focusInset = 0, selected = null} = defineProps<{
     points: MapPoint[]
     permanentLabels?: boolean
     fitToPoints?: boolean
+    /** Mapa sa otvorí tam, kde skončila predchádzajúca (napr. po zavretí oblasti), namiesto celého Slovenska */
+    keepView?: boolean
     /** Miesto, na ktoré sa mapa priblíži; bez neho sa vráti na všetky body */
     focus?: MapFocus | null
     /** Koľko px mapy zospodu prekrýva panel – focus sa centruje do zvyšku */
@@ -63,6 +65,9 @@ const emit = defineEmits<{
 
 /** Špendlík na úpravu GPS (editor): klik do mapy ho položí, dá sa ťahať. undefined = vypnutý, null = zatiaľ bez polohy */
 const pin = defineModel<Pick<MapFocus, 'lat' | 'lon'> | null>('pin')
+
+// Posledný výrez mapy ostáva medzi stránkami; ukladá ho každá mapa, načíta si ho len tá s keepView
+const lastView = useState<{center: L.LatLngTuple, zoom: number} | null>('mapView', () => null)
 
 const mapElement = useTemplateRef('mapElement')
 const config = useRuntimeConfig()
@@ -253,11 +258,17 @@ watch(() => focus, applyFocus, {flush: 'post'})
 onMounted(() => {
     if (!mapElement.value) return
 
+    const start = keepView && lastView.value ? lastView.value : {center: [48.611123, 17.576012] as L.LatLngTuple, zoom: 6}
+
     map = L.map(mapElement.value, {
         minZoom: 5,
         maxZoom: 18,
         zoomControl: false,
-    }).setView([48.611123, 17.576012], 6)
+    }).setView(start.center, start.zoom)
+    map.on('moveend', () => {
+        const {lat, lng} = map!.getCenter()
+        lastView.value = {center: [lat, lng], zoom: map!.getZoom()}
+    })
 
     L.tileLayer(mapTileUrl(config.public.mapyApiKey), {
         attribution: '&copy; Seznam.cz a.s.',

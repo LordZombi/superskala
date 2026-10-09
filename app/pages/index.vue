@@ -4,6 +4,7 @@
             class="absolute inset-0 z-0"
             :points="points"
             permanent-labels
+            keep-view
             @select="id => navigateTo(`/area/${id}`)"
         />
     </div>
