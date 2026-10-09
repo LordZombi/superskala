@@ -20,6 +20,7 @@ export type Database = {
           id: string
           lat: number | null
           lon: number | null
+          outline: Json | null
           name: string
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lon?: number | null
+          outline?: Json | null
           name: string
         }
         Update: {
@@ -34,6 +36,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lon?: number | null
+          outline?: Json | null
           name?: string
         }
         Relationships: []
@@ -179,6 +182,7 @@ export type Database = {
           id: string
           lat: number | null
           lon: number | null
+          outline: Json | null
           name: string
         }
         Insert: {
@@ -187,6 +191,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lon?: number | null
+          outline?: Json | null
           name: string
         }
         Update: {
@@ -195,6 +200,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lon?: number | null
+          outline?: Json | null
           name?: string
         }
         Relationships: [

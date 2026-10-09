@@ -36,6 +36,9 @@ export interface MapFocus {
     zoom: number
 }
 
+/** Body obrysu [lat, lon] po obvode, aspoň 3 */
+export type Outline = [number, number][]
+
 export interface MapPoint {
     id: string
     lat: number
@@ -43,9 +46,14 @@ export interface MapPoint {
     label: string
     /** Úroveň bodu určuje veľkosť: sektor > kameň > cesta; bez nej je to sektor */
     kind?: 'sector' | 'boulder' | 'climb'
+    /** Obrys sa vykreslí ako plocha okolo bodu */
+    outline?: Outline
+    /** Bod je viditeľný len v tomto rozsahu priblíženia (vrátane) */
+    minZoom?: number
+    maxZoom?: number
 }
 
-const {points, permanentLabels = false, fitToPoints = false, keepView = false, deepZoom = false, focus = null, focusInset = 0, selected = null} = defineProps<{
+const {points, permanentLabels = false, fitToPoints = false, keepView = false, deepZoom = false, drawing = false, focus = null, focusInset = 0, selected = null} = defineProps<{
     points: MapPoint[]
     permanentLabels?: boolean
     fitToPoints?: boolean
@@ -53,6 +61,8 @@ const {points, permanentLabels = false, fitToPoints = false, keepView = false, d
     keepView?: boolean
     /** Priblíženie až na zoom 20; od zoomu 19 sa dlaždice schovajú a ostane len zelená plocha (ako v Boolderi) */
     deepZoom?: boolean
+    /** Editor: klik do mapy pridá bod obrysu (namiesto posunu špendlíka), body sa dajú ťahať */
+    drawing?: boolean
     /** Miesto, na ktoré sa mapa priblíži; bez neho sa vráti na všetky body */
     focus?: MapFocus | null
     /** Koľko px mapy zospodu prekrýva panel – focus sa centruje do zvyšku */
@@ -73,6 +83,8 @@ const DEEP_MAX_ZOOM = 20
 
 /** Špendlík na úpravu GPS (editor): klik do mapy ho položí, dá sa ťahať. undefined = vypnutý, null = zatiaľ bez polohy */
 const pin = defineModel<Pick<MapFocus, 'lat' | 'lon'> | null>('pin')
+/** Obrys upravovaný v editore (zapína ho `drawing`) */
+const outline = defineModel<Outline | null>('outline')
 
 // Posledný výrez mapy ostáva medzi stránkami; ukladá ho každá mapa, načíta si ho len tá s keepView
 const lastView = useState<{center: L.LatLngTuple, zoom: number} | null>('mapView', () => null)
@@ -156,34 +168,71 @@ const icons = {
 // Menšie body ležia nad väčšími, aby sa dali trafiť aj tesne pri sektore
 const zIndexOffsets = {sector: 0, boulder: 100, climb: 200}
 
+interface Entry {
+    layers: L.Layer[]
+    minZoom: number
+    maxZoom: number
+}
+let entries: Entry[] = []
+
+const shapeStyle: L.PolylineOptions = {color: '#059669', weight: 2, fillColor: '#10b981', fillOpacity: 0.2}
+
+// Úroveň detailu: body mimo svojho rozsahu priblíženia sa z mapy dočasne vyberú
+const applyVisibility = () => {
+    if (!map) return
+
+    const level = map.getZoom()
+
+    entries.forEach(({layers, minZoom, maxZoom}) => {
+        const isVisible = level >= minZoom && level <= maxZoom
+
+        layers.forEach(layer => isVisible ? markers.addLayer(layer) : markers.removeLayer(layer))
+    })
+}
+
 const renderPoints = () => {
     if (!map) return
 
     markers.clearLayers()
 
-    points.forEach((point) => {
+    entries = points.map((point) => {
         const kind = point.kind ?? 'sector'
-        const marker = L.marker([point.lat, point.lon], {icon: icons[kind], zIndexOffset: zIndexOffsets[kind]}).addTo(markers)
+        const hasShape = (point.outline?.length ?? 0) > 2
+        const select = () => emit('select', point.id)
+        const marker = L.marker([point.lat, point.lon], {icon: icons[kind], zIndexOffset: zIndexOffsets[kind]})
         // Menovky kameňov a ciest sa ukážu len pri prejdení, trvalé by zahltili mapu
         const isPermanent = permanentLabels && kind === 'sector'
 
-        marker.getElement()?.setAttribute('aria-label', point.label)
-        marker.on('click', () => emit('select', point.id))
+        // Element vzniká až po pridaní do mapy, a to riadi viditeľnosť podľa priblíženia
+        marker.on('add', () => marker.getElement()?.setAttribute('aria-label', point.label))
+        marker.on('click', select)
         // Leaflet sám Enter/medzerník na markeri neobsluhuje
         marker.on('keydown', ({originalEvent}) => {
             if (originalEvent.key !== 'Enter' && originalEvent.key !== ' ') return
 
             originalEvent.preventDefault()
-            emit('select', point.id)
+            select()
         })
         marker.bindTooltip(point.label, {
-            // Trvalé menovky idú vedľa bodu, aby sa blízke sektory neprekrývali
-            direction: isPermanent ? 'right' : 'top',
-            offset: isPermanent ? [8, 0] : [0, -8],
-            permanent: isPermanent,
+            // Trvalé menovky idú vedľa bodu, aby sa blízke sektory neprekrývali; plocha má menovku v strede
+            direction: isPermanent && !hasShape ? 'right' : 'top',
+            offset: isPermanent && !hasShape ? [8, 0] : [0, -8],
+            permanent: isPermanent && !hasShape,
         })
+
+        const layers: L.Layer[] = [marker]
+
+        if (hasShape) {
+            // Plocha je len pre myš a dotyk, z klávesnice ostáva dostupný bod; v editore (pin) nesmie brániť klikaniu do mapy
+            layers.push(L.polygon(point.outline!, {...shapeStyle, interactive: pin.value === undefined})
+                .on('click', select)
+                .bindTooltip(point.label, {direction: 'center', permanent: isPermanent}))
+        }
+
+        return {layers, minZoom: point.minZoom ?? 0, maxZoom: point.maxZoom ?? Infinity}
     })
 
+    applyVisibility()
     fitPoints()
 }
 
@@ -224,6 +273,29 @@ const renderPin = () => {
     // Bez fokusu z klávesnice: ťahať sa ním nedá, súradnice sa dajú napísať do poľa v editore
     pinMarker = L.marker(latlng, {icon: pinIcon, draggable: true, keyboard: false, zIndexOffset: 1000}).addTo(map)
     pinMarker.on('dragend', () => pinMarker && setPin(pinMarker.getLatLng()))
+}
+
+const outlineLayer = L.layerGroup()
+const vertexIcon = L.divIcon({
+    className: '',
+    html: '<span class="block size-3 rounded-full bg-red-600 ring-2 ring-white"></span>',
+    iconSize: [12, 12],
+})
+
+const toVertex = ({lat, lng}: L.LatLng): [number, number] => [+lat.toFixed(6), +lng.toFixed(6)]
+
+const renderOutline = () => {
+    outlineLayer.clearLayers()
+
+    const shape = outline.value
+    if (!map || !shape?.length) return
+
+    L.polygon(shape, {...shapeStyle, color: '#dc2626', fillColor: '#dc2626', interactive: false}).addTo(outlineLayer)
+    if (!drawing) return
+
+    shape.forEach((vertex, index) => L.marker(vertex, {icon: vertexIcon, draggable: true, keyboard: false, zIndexOffset: 900})
+        .on('dragend', ({target}) => outline.value = shape.map((v, i) => i === index ? toVertex(target.getLatLng()) : v))
+        .addTo(outlineLayer))
 }
 
 let selectedMarker: L.Marker | undefined
@@ -277,6 +349,7 @@ onMounted(() => {
         const level = map!.getZoom()
 
         map!.getContainer().classList.toggle('is-plain', deepZoom && level > TILE_MAX_ZOOM)
+        applyVisibility()
         emit('zoom', level)
     })
     map.on('moveend', () => {
@@ -294,13 +367,16 @@ onMounted(() => {
     emit('zoom', map.getZoom())
     markers.addTo(map)
     positionLayer.addTo(map)
+    outlineLayer.addTo(map)
     map.on('locationfound', onLocationFound)
     map.on('locationerror', onLocationError)
     map.on('click', ({latlng}) => {
-        if (pin.value !== undefined) setPin(latlng)
+        if (drawing) outline.value = [...outline.value ?? [], toVertex(latlng)]
+        else if (pin.value !== undefined) setPin(latlng)
     })
     renderPoints()
     renderPin()
+    renderOutline()
     renderSelected()
     // Mapa v editore vzniká až s už nastaveným focusom, watch by ho nezachytil
     if (focus) applyFocus()
@@ -308,6 +384,7 @@ onMounted(() => {
 
 watch(() => points, renderPoints)
 watch(pin, renderPin)
+watch([outline, () => drawing], renderOutline)
 watch(() => selected, renderSelected)
 
 // Mapa mení veľkosť pri zmenšení panela oblasti, Leaflet si to sám nevšimne.

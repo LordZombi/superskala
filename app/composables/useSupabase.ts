@@ -47,7 +47,7 @@ export function useSupabase() {
 
         const {data, error: err} = await client
             .from('areas')
-            .select('id, name, lat, lon, sectors(lat, lon)');
+            .select('id, name, lat, lon, outline, sectors(id, name, lat, lon, outline)');
 
         loading.value = false;
 

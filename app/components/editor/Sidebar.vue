@@ -124,12 +124,51 @@
                     <template v-if="gpsRow">
                         <MapView
                             v-model:pin="gpsPin"
+                            v-model:outline="gpsOutline"
+                            :drawing="isDrawing"
                             class="h-80 overflow-hidden rounded-md"
                             :points="gpsPoints"
                             :focus="gpsFocus"
                             permanent-labels
                             fit-to-points
                         />
+
+                        <fieldset
+                            v-if="gpsTarget !== 'boulder'"
+                            class="flex flex-wrap items-center gap-2"
+                        >
+                            <legend class="sr-only">
+                                Obrys – {{ gpsRow.name }}
+                            </legend>
+                            <UButton
+                                :variant="isDrawing ? 'solid' : 'outline'"
+                                color="neutral"
+                                icon="i-heroicons-pencil"
+                                label="Kresliť obrys"
+                                :aria-pressed="isDrawing"
+                                @click="isDrawing = !isDrawing"
+                            />
+                            <UButton
+                                variant="outline"
+                                color="neutral"
+                                label="Späť o bod"
+                                :disabled="!gpsOutline?.length"
+                                @click="gpsOutline = gpsOutline!.slice(0, -1)"
+                            />
+                            <UButton
+                                variant="outline"
+                                color="neutral"
+                                label="Zmazať obrys"
+                                :disabled="!gpsOutline?.length"
+                                @click="gpsOutline = null"
+                            />
+                            <p
+                                v-if="isDrawing"
+                                class="w-full text-sm text-muted"
+                            >
+                                Klikaj do mapy po obvode (aspoň 3 body), body sa dajú ťahať.
+                            </p>
+                        </fieldset>
 
                         <UFormField
                             :label="`Súradnice – ${gpsRow.name}`"
@@ -310,7 +349,7 @@
 >
 import {computed, onMounted, ref, watch} from 'vue';
 import type {Database} from '~/types/database.types';
-import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue';
+import MapView, {type MapFocus, type MapPoint, type Outline} from '~/components/MapView.vue';
 import SDivider from "~/components/super/SDivider.vue";
 import {UModal} from '#components';
 
@@ -451,6 +490,9 @@ const gpsTarget = ref<GpsTarget>();
 const gpsPin = ref<Pick<MapFocus, 'lat' | 'lon'> | null>(null);
 const gpsFocus = ref<MapFocus | null>(null);
 const gpsDescription = ref('');
+// Obrys má oblasť a sektor (kameň nie); kreslí sa klikaním do mapy
+const gpsOutline = ref<Outline | null>(null);
+const isDrawing = ref(false);
 
 // Poradie od najširšej úrovne; zoom sedí s tým, ako sa na ne približuje stránka oblasti
 const gpsLevels = computed(() => ({
@@ -464,13 +506,15 @@ const gpsRow = computed(() => gpsTarget.value && selectedRow(gpsTarget.value));
 // Ostatné body tej istej úrovne, nech je podľa čoho sa na mape orientovať
 const gpsPoints = computed<MapPoint[]>(() => !gpsTarget.value ? [] : gpsLevels.value[gpsTarget.value].rows
     .filter(row => row !== gpsRow.value && hasGps(row))
-    .map(row => ({id: row.id, lat: row.lat, lon: row.lon, label: row.name})));
+    .map(row => ({id: row.id, lat: row.lat, lon: row.lon, label: row.name, outline: ('outline' in row ? row.outline ?? undefined : undefined) as Outline | undefined})));
 
 // Len pri zmene záznamu, nie pri každom posune špendlíka – inak by mapa stále odlietala
 watch(gpsRow, (row) => {
     if (!row || !gpsTarget.value) return;
 
     gpsPin.value = hasGps(row) ? {lat: row.lat, lon: row.lon} : null;
+    gpsOutline.value = ('outline' in row ? row.outline ?? null : null) as Outline | null;
+    isDrawing.value = false;
     gpsDescription.value = row.description || '';
 
     // Bez vlastnej GPS sa mapa priblíži na najbližšiu nadradenú úroveň, ktorá ju má
@@ -497,11 +541,18 @@ const saveGpsAndDescription = async () => {
     const row = gpsRow.value;
     if (!row || !gpsTarget.value) return;
 
+    // Obrys má zmysel od 3 bodov; bez špendlíka sa bod položí do jeho stredu, nech má sektor aj menovku a odkaz
+    const outline = gpsTarget.value !== 'boulder' && gpsOutline.value && gpsOutline.value.length > 2 ? gpsOutline.value : null;
+    const center = outline && !gpsPin.value
+        ? {lat: +(outline.reduce((sum, [lat]) => sum + lat, 0) / outline.length).toFixed(6), lon: +(outline.reduce((sum, [, lon]) => sum + lon, 0) / outline.length).toFixed(6)}
+        : gpsPin.value;
     const coords = {
-        lat: gpsPin.value?.lat ?? null,
-        lon: gpsPin.value?.lon ?? null,
+        lat: center?.lat ?? null,
+        lon: center?.lon ?? null,
         // Prázdny popis ako null, stránka oblasti ho potom vôbec nevykreslí
         description: gpsDescription.value.trim() || null,
+        // Kameň stĺpec obrysu nemá
+        ...gpsTarget.value !== 'boulder' && {outline},
     };
     // select(): keď zápis zastaví RLS, Supabase nevráti chybu, len žiadny riadok
     const {data, error} = await client.from(gpsLevels.value[gpsTarget.value].table).update(coords).eq('id', row.id).select('id');
@@ -509,6 +560,7 @@ const saveGpsAndDescription = async () => {
     else {
         // Lokálny zoznam sa znova nenačítava, tak nech sedí s DB
         Object.assign(row, coords);
+        gpsPin.value = center;
         toast.add({title: 'GPS a popis uložené', description: row.name, color: 'success'});
     }
 };

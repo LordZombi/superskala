@@ -197,7 +197,7 @@
 import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from 'vue'
 import {useMediaQuery, useOnline, useWindowSize} from '@vueuse/core'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
-import MapView, {type MapFocus, type MapPoint} from '~/components/MapView.vue'
+import MapView, {type MapFocus, type MapPoint, type Outline} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
 import SSortChip from '~/components/super/SSortChip.vue'
@@ -427,13 +427,16 @@ const openSectorFromQuery = async () => {
 
 watch(() => route.query.sector, openSectorFromQuery)
 
-// Sektory, kamene a cesty, ktoré majú GPS; veľkosť bodu podľa úrovne rieši mapa
+// Sektory, kamene a cesty, ktoré majú GPS; veľkosť bodu podľa úrovne rieši mapa.
+// Čím bližšie, tým jemnejší detail: najprv sektory, od BOULDER_MIN_ZOOM kamene, od CLIMB_MIN_ZOOM cesty
+const BOULDER_MIN_ZOOM = 17
+const CLIMB_MIN_ZOOM = 19
 const mapPoints = computed<MapPoint[]>(() => sectors.value.flatMap(sector => [
-    ...sector.lat && sector.lon ? [{id: sector.id, lat: sector.lat, lon: sector.lon, label: sector.name}] : [],
+    ...sector.lat && sector.lon ? [{id: sector.id, lat: sector.lat, lon: sector.lon, label: sector.name, outline: (sector.outline ?? undefined) as Outline | undefined}] : [],
     ...sector.boulders.flatMap(boulder => [
-        ...boulder.lat && boulder.lon ? [{id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const}] : [],
+        ...boulder.lat && boulder.lon ? [{id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const, minZoom: BOULDER_MIN_ZOOM}] : [],
         ...boulder.climbs.flatMap(climb =>
-            climb.lat && climb.lon ? [{id: climb.id, lat: climb.lat, lon: climb.lon, label: climb.name, kind: 'climb' as const}] : []),
+            climb.lat && climb.lon ? [{id: climb.id, lat: climb.lat, lon: climb.lon, label: climb.name, kind: 'climb' as const, minZoom: CLIMB_MIN_ZOOM}] : []),
     ]),
 ]))
 
