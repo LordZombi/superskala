@@ -1,5 +1,5 @@
-import {computed, ref, toValue, type MaybeRefOrGetter} from 'vue'
-import {writeSnapshot} from '~/composables/useSupabase'
+import {computed, ref, toRaw, toValue, type MaybeRefOrGetter} from 'vue'
+import {useSupabase, writeSnapshot} from '~/composables/useSupabase'
 
 /** Šablóna dlaždíc pre Leaflet; offline uloženie musí sťahovať presne tie isté URL, inak ich service worker nenájde */
 export const mapTileUrl = (apiKey: string) =>
@@ -99,6 +99,7 @@ const tileUrls = (template: string, points: { lat: number, lon: number }[]) => {
  */
 export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
     const config = useRuntimeConfig()
+    const {getAreasForMap, getSearchIndex} = useSupabase()
     const savedAt = ref<string | null>(null)
     const progress = ref<number | null>(null)
     const failed = ref(0)
@@ -116,6 +117,9 @@ export function useOfflineArea(area: MaybeRefOrGetter<OfflineArea | null>) {
 
         // Bez toho môže prehliadač pri nedostatku miesta cache potichu zmazať
         await navigator.storage?.persist?.().catch(() => false)
+        progress.value = 0
+        // Mapa, hľadanie aj táto oblasť sa uložia práve teraz, nie až keď sa náhodou otvoria online
+        await Promise.all([writeSnapshot(`area:${current.id}`, toRaw(current)), getAreasForMap(), getSearchIndex()])
 
         const boulders = current.sectors.flatMap(sector => sector.boulders)
         const points = [...current.sectors, ...boulders].flatMap(({lat, lon}) =>
