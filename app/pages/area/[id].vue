@@ -9,7 +9,9 @@
                 :selected="boulderPoint"
                 permanent-labels
                 fit-to-points
+                deep-zoom
                 @select="selectPoint"
+                @zoom="mapZoom = $event"
             />
 
             <section
@@ -254,6 +256,13 @@ const panel = useTemplateRef('panel')
 const {isMinimized} = useSheetSwipe(panel, panel)
 // Zmenšený panel (len mobil) ukazuje iba názov oblasti; invisible obsah vyradí z fokusu a výšku nechá panelu na animáciu
 const minimizedHidden = computed(() => ({'max-lg:invisible': isMinimized.value}))
+
+// Zblízka (od zoomu 18) sa panel oblasti sám zmenší, aby mapa ostala vidieť; pri oddialení sa vráti.
+// Reaguje len na prechod cez hranicu, takže ho dá ručne roztiahnuť aj pri veľkom priblížení.
+// Sektor sa z mapy otvára na zoome 17, preto ho tento prah neskryje
+const MINIMIZE_FROM_ZOOM = 18
+const mapZoom = ref(0)
+watch(() => mapZoom.value >= MINIMIZE_FROM_ZOOM, isClose => isMinimized.value = isClose)
 
 const collator = new Intl.Collator('sk', {numeric: true})
 const pluralRules = new Intl.PluralRules('sk')

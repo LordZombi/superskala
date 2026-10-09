@@ -45,12 +45,14 @@ export interface MapPoint {
     kind?: 'sector' | 'boulder' | 'climb'
 }
 
-const {points, permanentLabels = false, fitToPoints = false, keepView = false, focus = null, focusInset = 0, selected = null} = defineProps<{
+const {points, permanentLabels = false, fitToPoints = false, keepView = false, deepZoom = false, focus = null, focusInset = 0, selected = null} = defineProps<{
     points: MapPoint[]
     permanentLabels?: boolean
     fitToPoints?: boolean
     /** Mapa sa otvorí tam, kde skončila predchádzajúca (napr. po zavretí oblasti), namiesto celého Slovenska */
     keepView?: boolean
+    /** Priblíženie až na zoom 20; od zoomu 19 sa dlaždice schovajú a ostane len zelená plocha (ako v Boolderi) */
+    deepZoom?: boolean
     /** Miesto, na ktoré sa mapa priblíži; bez neho sa vráti na všetky body */
     focus?: MapFocus | null
     /** Koľko px mapy zospodu prekrýva panel – focus sa centruje do zvyšku */
@@ -61,7 +63,13 @@ const {points, permanentLabels = false, fitToPoints = false, keepView = false, f
 
 const emit = defineEmits<{
     select: [id: string]
+    /** Aktuálne priblíženie mapy (po každej zmene) */
+    zoom: [level: number]
 }>()
+
+// Dlaždice mapy.cz sú len do zoomu 18, ďalej by sa len zväčšovali do rozmazanej plochy
+const TILE_MAX_ZOOM = 18
+const DEEP_MAX_ZOOM = 20
 
 /** Špendlík na úpravu GPS (editor): klik do mapy ho položí, dá sa ťahať. undefined = vypnutý, null = zatiaľ bez polohy */
 const pin = defineModel<Pick<MapFocus, 'lat' | 'lon'> | null>('pin')
@@ -262,9 +270,15 @@ onMounted(() => {
 
     map = L.map(mapElement.value, {
         minZoom: 5,
-        maxZoom: 18,
+        maxZoom: deepZoom ? DEEP_MAX_ZOOM : TILE_MAX_ZOOM,
         zoomControl: false,
     }).setView(start.center, start.zoom)
+    map.on('zoomend', () => {
+        const level = map!.getZoom()
+
+        map!.getContainer().classList.toggle('is-plain', deepZoom && level > TILE_MAX_ZOOM)
+        emit('zoom', level)
+    })
     map.on('moveend', () => {
         const {lat, lng} = map!.getCenter()
         lastView.value = {center: [lat, lng], zoom: map!.getZoom()}
@@ -272,10 +286,12 @@ onMounted(() => {
 
     L.tileLayer(mapTileUrl(config.public.mapyApiKey), {
         attribution: '&copy; Seznam.cz a.s.',
+        maxNativeZoom: TILE_MAX_ZOOM,
         // CORS odpoveď (200) service worker uloží; nepriehľadnú (no-cors) by do cache nedal
         crossOrigin: true,
     }).addTo(map)
 
+    emit('zoom', map.getZoom())
     markers.addTo(map)
     positionLayer.addTo(map)
     map.on('locationfound', onLocationFound)

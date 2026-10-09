@@ -43,3 +43,18 @@ button {
 .rich-text ol {
     @apply list-decimal;
 }
+
+/* Hlboké priblíženie mapy (deepZoom): od zoomu 19 sú dlaždice schované a ostane len zelená plocha */
+@media (prefers-reduced-motion: no-preference) {
+    #map .leaflet-tile-pane {
+        transition: opacity 0.3s;
+    }
+}
+
+#map.is-plain {
+    background-color: #d6e4c4;
+}
+
+#map.is-plain .leaflet-tile-pane {
+    opacity: 0;
+}
