@@ -37,7 +37,7 @@ onMounted(async () => {
                 class="space-y-4"
             >
                 <div
-                    class="flex items-center gap-4"
+                    class="flex items-center gap-4 text-neutral-900"
                 >
                     <!-- dekoratívne: názov hneď vedľa ho už hovorí; maska preberá farbu textu a orezané logo lícuje s okrajom -->
                     <span

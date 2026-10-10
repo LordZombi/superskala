@@ -7,7 +7,7 @@
         >
             <NuxtLink
                 to="/"
-                class="flex items-center gap-2 group"
+                class="flex items-center gap-2 group text-neutral-900"
             >
                 <span
                     aria-hidden="true"
