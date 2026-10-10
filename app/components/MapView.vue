@@ -337,7 +337,8 @@ const applyFocus = () => {
 
     map.flyToBounds(L.latLng(focus.lat, focus.lon).toBounds(1), {
         paddingBottomRight: [0, focusInset],
-        maxZoom: focus.zoom,
+        // Zblízka sa už neodďaluje: priblíži sa najviac na focus.zoom, ale nikdy nie späť z väčšieho priblíženia
+        maxZoom: Math.max(focus.zoom, map.getZoom()),
         animate: reducedMotion.value !== 'reduce',
     })
 }
