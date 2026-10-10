@@ -67,7 +67,14 @@
 
                     <SDivider :class="minimizedHidden"/>
 
-                    <SSortChip :class="minimizedHidden"/>
+                    <div :class="['flex flex-wrap items-start gap-2', minimizedHidden]">
+                        <SSortChip/>
+                        <SGradeChip
+                            v-if="gradeCounts.length"
+                            v-model="gradeRange"
+                            :grades="gradeCounts"
+                        />
+                    </div>
 
                     <UAccordion
                         v-model="openSectors"
@@ -201,6 +208,7 @@ import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapFocus, type MapPoint, type Outline} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
+import SGradeChip from '~/components/super/SGradeChip.vue'
 import SSortChip from '~/components/super/SSortChip.vue'
 import {useOfflineArea} from '~/composables/useOfflineArea'
 import {useSafeHtml} from '~/composables/useSafeHtml'
@@ -272,9 +280,29 @@ const pluralRules = new Intl.PluralRules('sk')
 const plural = (count: number, [one, few, many]: [string, string, string]) =>
     `${count} ${{one, few}[pluralRules.select(count) as 'one' | 'few'] ?? many}`
 
+// Rozsah obtiažnosti z grafu (hodnoty stupňov); null = bez filtra
+const gradeRange = ref<[number, number] | null>(null)
+watch(() => area.value?.id, () => gradeRange.value = null)
+
+// Počty ciest podľa stupňa v celej oblasti, od najľahšieho
+const gradeCounts = computed(() => {
+    const counts = new Map<number, { font: string, value: number, count: number }>()
+    for (const climb of (area.value?.sectors ?? []).flatMap(s => s.boulders.flatMap(b => b.climbs))) {
+        if (climb.grade) counts.set(climb.grade.value, {...climb.grade, count: (counts.get(climb.grade.value)?.count ?? 0) + 1})
+    }
+    return [...counts.values()].sort((a, b) => a.value - b.value)
+})
+const inRange = (climb: { grade?: { value: number } | null }) =>
+    !gradeRange.value || (!!climb.grade && climb.grade.value >= gradeRange.value[0] && climb.grade.value <= gradeRange.value[1])
+
 const sectors = computed(() => (area.value?.sectors ?? [])
     .map((sector) => {
         const boulders = sector.boulders
+            .map(boulder => ({
+                ...boulder,
+                climbs: boulder.climbs.filter(inRange),
+            }))
+            .filter(boulder => boulder.climbs.length || !gradeRange.value)
             .map(boulder => ({
                 ...boulder,
                 // Poradie ako v tope (číslo na fotke); varianty bez čísla idú na koniec podľa obtiažnosti
