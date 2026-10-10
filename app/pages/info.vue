@@ -7,6 +7,8 @@ import SDivider from "~/components/super/SDivider.vue";
 import {useSupabase} from "~/composables/useSupabase";
 
 const {getAreasForMap} = useSupabase();
+const {buildCommit, buildTime} = useRuntimeConfig().public;
+const buildDate = new Date(buildTime).toLocaleString('sk');
 const areas = ref<{ id: string, name: string }[]>([]);
 
 onMounted(async () => {
@@ -254,6 +256,10 @@ onMounted(async () => {
                     />
                 </div>
             </section>
+
+            <p class="pb-8 text-xs text-neutral-500">
+                Verzia {{ buildCommit }} • zostavené {{ buildDate }}
+            </p>
         </div>
     </UContainer>
 </template>

@@ -1,3 +1,15 @@
+import {execSync} from 'node:child_process'
+
+// Verzia zostavenia na info stránke: hash commitu (z CI alebo z gitu; * = necommitnuté zmeny) a čas buildu
+const git = (command: string) => execSync(`git ${command}`, {stdio: ['ignore', 'pipe', 'ignore']}).toString().trim()
+const buildCommit = (() => {
+    try {
+        return `${git('rev-parse --short HEAD')}${git('status --porcelain') ? '*' : ''}`
+    } catch {
+        return (process.env.GITHUB_SHA ?? process.env.CF_PAGES_COMMIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'neznáma').slice(0, 7)
+    }
+})()
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     ssr: false,
@@ -62,6 +74,8 @@ export default defineNuxtConfig({
             mapyApiKey: '', // NUXT_PUBLIC_MAPY_API_KEY
             // Measurement ID je verejné (vidno ho v zdrojáku každej stránky), preto nemusí byť v .env
             gaId: 'G-EY7G4EY7LR',
+            buildCommit,
+            buildTime: new Date().toISOString(),
         },
     },
 
