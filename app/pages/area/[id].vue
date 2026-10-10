@@ -40,6 +40,12 @@
                                     :title="offlineLabel"
                                     @click="saveOffline"
                                 />
+                                <SNavigateButton
+                                    v-if="area.lat != null && area.lon != null"
+                                    :title="area.name"
+                                    :lat="area.lat"
+                                    :lon="area.lon"
+                                />
                                 <SShareButton
                                     :title="area.name"
                                     :path="route.path"
@@ -207,6 +213,7 @@ import {useMediaQuery, useOnline, useWindowSize} from '@vueuse/core'
 import ClimbDetailSheet from '~/components/ClimbDetailSheet.vue'
 import MapView, {type MapFocus, type MapPoint, type Outline} from '~/components/MapView.vue'
 import SDivider from '~/components/super/SDivider.vue'
+import SNavigateButton from '~/components/super/SNavigateButton.vue'
 import SShareButton from '~/components/super/SShareButton.vue'
 import SGradeChip from '~/components/super/SGradeChip.vue'
 import SSortChip from '~/components/super/SSortChip.vue'
