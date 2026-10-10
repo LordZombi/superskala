@@ -328,8 +328,9 @@ const selectedSector = computed(() => sectors.value.find(({boulders}) =>
 // Bod vybraného kameňa na mape, ak má GPS
 const boulderPoint = computed<MapPoint | null>(() => {
     const boulder = selectedBoulder.value
+    const spot = boulder && placements.value.get(boulder.id)
 
-    return boulder?.lat && boulder.lon ? {id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const} : null
+    return boulder && spot ? {id: boulder.id, lat: spot.lat, lon: spot.lon, label: boulder.name, kind: 'boulder' as const} : null
 })
 // Kým nie je vybraný kameň s GPS, orange bod ukazuje sektor vybranej cesty, inak otvorený sektor
 const selectedPoint = computed<MapPoint | null>(() => {
@@ -395,11 +396,12 @@ watch(selectedClimbId, (climb) => {
 
 // Vybraný kameň sa na mape priblíži; kým nemá vlastné súradnice, poslúži jeho sektor
 const mapFocus = computed<MapFocus | null>(() => {
-    const climb = selectedClimb.value
-    if (climb?.lat && climb.lon) return {lat: climb.lat, lon: climb.lon, zoom: 18}
+    const climbSpot = selectedClimb.value && placements.value.get(selectedClimb.value.id)
+    if (climbSpot) return {lat: climbSpot.lat, lon: climbSpot.lon, zoom: CLIMB_MIN_ZOOM}
 
     const boulder = boulders.value[boulderIndex.value]
-    if (boulder?.lat && boulder.lon) return {lat: boulder.lat, lon: boulder.lon, zoom: 18}
+    const boulderSpot = boulder && placements.value.get(boulder.id)
+    if (boulderSpot) return {lat: boulderSpot.lat, lon: boulderSpot.lon, zoom: 18}
 
     const sector = sectors.value.find(({id, boulders}) =>
         boulder ? boulders.includes(boulder) : id === focusedSectorId.value)
@@ -434,16 +436,54 @@ const openSectorFromQuery = async () => {
 
 watch(() => route.query.sector, openSectorFromQuery)
 
-// Sektory, kamene a cesty, ktoré majú GPS; veľkosť bodu podľa úrovne rieši mapa.
-// Čím bližšie, tým jemnejší detail: najprv sektory, od BOULDER_MIN_ZOOM kamene, od CLIMB_MIN_ZOOM cesty
+// Kameň a cesta bez GPS sa rozložia do kruhu okolo nadradeného bodu (kameň okolo sektora, cesta okolo kameňa), aby sa dali
+// ukázať a vybrať; ich poloha je len odhad a mapa ju kreslí ako prázdny bod
+const M_PER_DEG = 111_320
+const ring = (center: {lat: number, lon: number}, count: number, index: number, radiusM: number) => ({
+    lat: center.lat + radiusM * Math.cos(2 * Math.PI * index / count) / M_PER_DEG,
+    lon: center.lon + radiusM * Math.sin(2 * Math.PI * index / count) / (M_PER_DEG * Math.cos(center.lat * Math.PI / 180)),
+})
+
+const placements = computed(() => {
+    const spots = new Map<string, {lat: number, lon: number, approx: boolean}>()
+
+    sectors.value.forEach((sector) => {
+        const loose = sector.boulders.filter(boulder => !(boulder.lat && boulder.lon) && boulder.climbs.length)
+
+        sector.boulders.forEach((boulder) => {
+            const own = boulder.lat && boulder.lon ? {lat: boulder.lat, lon: boulder.lon} : null
+            const center = own ?? (sector.lat && sector.lon && loose.includes(boulder)
+                ? ring({lat: sector.lat, lon: sector.lon}, loose.length, loose.indexOf(boulder), Math.max(12, loose.length * 0.8))
+                : null)
+            if (!center) return
+
+            spots.set(boulder.id, {...center, approx: !own})
+
+            const unplaced = boulder.climbs.filter(climb => !(climb.lat && climb.lon))
+
+            boulder.climbs.forEach(climb => spots.set(climb.id, climb.lat && climb.lon
+                ? {lat: climb.lat, lon: climb.lon, approx: false}
+                : {...ring(center, unplaced.length, unplaced.indexOf(climb), Math.max(2.5, unplaced.length * 0.6)), approx: true}))
+        })
+    })
+
+    return spots
+})
+
+// Sektory, kamene a cesty na mape; veľkosť bodu podľa úrovne rieši mapa.
+// Čím bližšie, tým jemnejší detail: najprv sektory, od BOULDER_MIN_ZOOM kamene, od CLIMB_MIN_ZOOM cesty (odhadnuté o stupeň neskôr)
 const BOULDER_MIN_ZOOM = 17
 const CLIMB_MIN_ZOOM = 19
+const placed = (id: string, label: string, kind: 'boulder' | 'climb', minZoom: number): MapPoint[] => {
+    const spot = placements.value.get(id)
+
+    return spot ? [{id, lat: spot.lat, lon: spot.lon, label, kind, approx: spot.approx, minZoom: minZoom + Number(spot.approx)}] : []
+}
 const mapPoints = computed<MapPoint[]>(() => sectors.value.flatMap(sector => [
     ...sector.lat && sector.lon ? [{id: sector.id, lat: sector.lat, lon: sector.lon, label: sector.name, outline: (sector.outline ?? undefined) as Outline | undefined}] : [],
     ...sector.boulders.flatMap(boulder => [
-        ...boulder.lat && boulder.lon ? [{id: boulder.id, lat: boulder.lat, lon: boulder.lon, label: boulder.name, kind: 'boulder' as const, minZoom: BOULDER_MIN_ZOOM}] : [],
-        ...boulder.climbs.flatMap(climb =>
-            climb.lat && climb.lon ? [{id: climb.id, lat: climb.lat, lon: climb.lon, label: climb.name, kind: 'climb' as const, minZoom: CLIMB_MIN_ZOOM}] : []),
+        ...placed(boulder.id, boulder.name, 'boulder', BOULDER_MIN_ZOOM),
+        ...boulder.climbs.flatMap(climb => placed(climb.id, climb.name, 'climb', CLIMB_MIN_ZOOM)),
     ]),
 ]))
 

@@ -46,6 +46,8 @@ export interface MapPoint {
     label: string
     /** Úroveň bodu určuje veľkosť: sektor > kameň > cesta; bez nej je to sektor */
     kind?: 'sector' | 'boulder' | 'climb'
+    /** Poloha je len odhad (rozloženie okolo nadradeného bodu), nie GPS: bod sa vykreslí ako prázdny */
+    approx?: boolean
     /** Obrys sa vykreslí ako plocha okolo bodu */
     outline?: Outline
     /** Bod je viditeľný len v tomto rozsahu priblíženia (vrátane) */
@@ -165,6 +167,19 @@ const icons = {
         iconSize: [24, 24],
     }),
 }
+const approxIcons = {
+    sector: icons.sector,
+    boulder: L.divIcon({
+        className: '',
+        html: '<span class="flex size-6 items-center justify-center"><span class="block size-3 rounded-full bg-white/70 ring-2 ring-emerald-500"></span></span>',
+        iconSize: [24, 24],
+    }),
+    climb: L.divIcon({
+        className: '',
+        html: '<span class="flex size-6 items-center justify-center"><span class="block size-2 rounded-full bg-white/70 ring-1 ring-emerald-500"></span></span>',
+        iconSize: [24, 24],
+    }),
+}
 // Menšie body ležia nad väčšími, aby sa dali trafiť aj tesne pri sektore
 const zIndexOffsets = {sector: 0, boulder: 100, climb: 200}
 
@@ -199,7 +214,7 @@ const renderPoints = () => {
         const kind = point.kind ?? 'sector'
         const hasShape = (point.outline?.length ?? 0) > 2
         const select = () => emit('select', point.id)
-        const marker = L.marker([point.lat, point.lon], {icon: icons[kind], zIndexOffset: zIndexOffsets[kind]})
+        const marker = L.marker([point.lat, point.lon], {icon: (point.approx ? approxIcons : icons)[kind], zIndexOffset: zIndexOffsets[kind]})
         // Menovky kameňov a ciest sa ukážu len pri prejdení, trvalé by zahltili mapu
         const isPermanent = permanentLabels && kind === 'sector'
 
